@@ -1,0 +1,13 @@
+# /etc/systemd/system/kanban-backup.service: a consistent copy while the server runs,
+# fourteen days kept.
+[Unit]
+Description=Back up the Kanban database
+
+[Service]
+Type=oneshot
+User=kanban
+Group=kanban
+StateDirectory=kanban
+ExecStartPre=/bin/mkdir -p /var/lib/kanban/backups
+ExecStart=/bin/sh -c '/opt/kanban/kanban backup -db /var/lib/kanban/kanban.db -to /var/lib/kanban/backups/kanban-$(date -u +%%Y%%m%%dT%%H%%M).db'
+ExecStartPost=/usr/bin/find /var/lib/kanban/backups -name 'kanban-*.db' -mtime +14 -delete

@@ -1,0 +1,52 @@
+# /etc/systemd/system/kanban.service
+[Unit]
+Description=Kanban (Go, Datastar, SQLite)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=kanban
+Group=kanban
+StateDirectory=kanban
+WorkingDirectory=/var/lib/kanban
+ExecStart=/opt/kanban/kanban serve \
+	-addr 127.0.0.1:8095 \
+	-db /var/lib/kanban/kanban.db \
+	-secure -proxied \
+	-origins https://kanban.zweiundeins.gmbh \
+	-reset-at 03:00
+# Each busy live stream keeps about 2.2 MB of brotli state: the limit
+# makes the garbage collector work harder before memory grows past it.
+Environment=GOMEMLIMIT=600MiB
+Restart=always
+RestartSec=1
+# SIGTERM: stop accepting, end the streams (pages reconnect), commit what is queued.
+KillSignal=SIGTERM
+TimeoutStopSec=20
+LimitNOFILE=65536
+
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

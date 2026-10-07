@@ -1,0 +1,16 @@
+# Caddy 2. The app compresses its pages and streams itself: no `encode` here.
+kanban.zweiundeins.gmbh {
+	log {
+		output file /var/log/caddy/kanban-access.log {
+			roll_size 100mb
+			roll_keep 5
+			roll_keep_for 720h
+		}
+		format json
+	}
+
+	reverse_proxy 127.0.0.1:8095 {
+		# Server-sent events: pass every write through at once.
+		flush_interval -1
+	}
+}
