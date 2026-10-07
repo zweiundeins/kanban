@@ -1,0 +1,8 @@
+/data/
+/kanban
+/tmp/
+*_templ.go.tmp
+node_modules/
+/e2e/results/
+.env
+/benchmarks/scripts/node_modules
