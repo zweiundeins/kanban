@@ -1,0 +1,143 @@
+{
+  "app": "PLANKA Community 2.2.1",
+  "base": "http://127.0.0.1:19001",
+  "date": "2026-10-07T20:47:22.198Z",
+  "profile": "cmd/netem 150 ms RTT, 1.6 Mbps down, 750 kbps up; measured person 4x CPU; 1280x860; pointer drags",
+  "load": {
+    "transferred_bytes": 2575704,
+    "ms_to_cards": 15246,
+    "ms_to_load_event": 12421,
+    "lcp_ms": 15404,
+    "cls": 0.02
+  },
+  "move_drop_to_shown_ms": {
+    "n": 20,
+    "p50": 483,
+    "p95": 497,
+    "max": 497,
+    "samples": [
+      497,
+      489,
+      487,
+      490,
+      467,
+      466,
+      485,
+      478,
+      487,
+      484,
+      487,
+      479,
+      477,
+      479,
+      486,
+      483,
+      476,
+      472,
+      480,
+      467
+    ]
+  },
+  "moves_not_landed": 0,
+  "move_drop_to_confirmed_ms": {
+    "n": 20,
+    "p50": 720,
+    "p95": 745,
+    "max": 745,
+    "samples": [
+      733,
+      721,
+      720,
+      720,
+      705,
+      690,
+      712,
+      700,
+      710,
+      704,
+      745,
+      733,
+      723,
+      728,
+      736,
+      724,
+      703,
+      707,
+      701,
+      698
+    ]
+  },
+  "move_seen_by_second_person_ms": {
+    "n": 20,
+    "p50": 657,
+    "p95": 674,
+    "max": 674,
+    "samples": [
+      674,
+      661,
+      655,
+      667,
+      635,
+      636,
+      652,
+      648,
+      656,
+      661,
+      657,
+      658,
+      649,
+      665,
+      667,
+      655,
+      660,
+      637,
+      667,
+      638
+    ]
+  },
+  "open_card_ms": {
+    "n": 5,
+    "p50": 315,
+    "p95": 345,
+    "max": 345,
+    "samples": [
+      345,
+      315,
+      337,
+      299,
+      300
+    ]
+  },
+  "comment_to_shown_ms": {
+    "n": 5,
+    "p50": 85,
+    "p95": 90,
+    "max": 90,
+    "samples": [
+      85,
+      87,
+      90,
+      83,
+      84
+    ]
+  },
+  "comment_to_confirmed_ms": {
+    "n": 5,
+    "p50": 221,
+    "p95": 237,
+    "max": 237,
+    "samples": [
+      229,
+      237,
+      221,
+      220,
+      219
+    ]
+  },
+  "after_session": {
+    "dom_nodes": 3295,
+    "inp_ms": 256,
+    "cls_session": 0.0292,
+    "js_heap_used_bytes": 44973972
+  }
+}

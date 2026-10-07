@@ -1,0 +1,56 @@
+{
+  "app": "kanban (Go, Datastar)",
+  "base": "http://127.0.0.1:19000",
+  "date": "2026-10-07T14:34:54.311Z",
+  "profile": "cmd/netem 150 ms RTT, 1.6 Mbps down, 750 kbps up; measured person 4x CPU; 1280x860; pointer drags",
+  "load": {
+    "ms_to_load_event": 1114,
+    "ms_to_cards": 1173,
+    "transferred_bytes": 72956,
+    "lcp_ms": 556,
+    "cls": 0
+  },
+  "move_drop_to_shown_ms": {
+    "n": 10,
+    "p50": 244,
+    "p95": 266,
+    "max": 266
+  },
+  "moves_not_landed": 0,
+  "move_drop_to_confirmed_ms": {
+    "n": 10,
+    "p50": 350,
+    "p95": 407,
+    "max": 407
+  },
+  "move_seen_by_second_person_ms": {
+    "n": 10,
+    "p50": 194,
+    "p95": 203,
+    "max": 203
+  },
+  "open_card_ms": {
+    "n": 5,
+    "p50": 255,
+    "p95": 322,
+    "max": 322
+  },
+  "comment_to_shown_ms": {
+    "n": 5,
+    "p50": 317,
+    "p95": 323,
+    "max": 323
+  },
+  "comment_to_confirmed_ms": {
+    "n": 5,
+    "p50": 317,
+    "p95": 323,
+    "max": 323
+  },
+  "after_session": {
+    "dom_nodes": 1835,
+    "inp_ms": 64,
+    "cls_session": 0.0001,
+    "js_heap_used_bytes": 4254988
+  }
+}

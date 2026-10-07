@@ -1,0 +1,42 @@
+# PLANKA Community v2.2.1 for the comparison, derived from its official
+# docker-compose.yml (https://raw.githubusercontent.com/plankanban/planka/v2.2.1/docker-compose.yml): pinned image,
+# real secrets (from .env, not committed), a database password instead of
+# trust auth, and the port only on the Docker bridge gateway, so other
+# containers on this host reach it and the network doesn't.
+#   ./setup.sh   (creates .env, starts it, waits until it answers)
+name: kanban-bench-planka
+services:
+  planka:
+    image: ghcr.io/plankanban/planka:2.2.1
+    # Starts after postgres and retries until it answers (exec health checks
+    # fail on some hosts, so there is none).
+    restart: on-failure:20
+    volumes:
+      - data:/app/data
+    ports:
+      - ${PLANKA_BIND:-172.17.0.1}:3300:1337
+    environment:
+      # The address the browser uses (the benchmarks go through cmd/netem).
+      - BASE_URL=${PLANKA_BASE_URL:-http://172.17.0.1:3300}
+      - DATABASE_URL=postgresql://postgres:${PLANKA_DB_PASSWORD}@postgres/planka
+      - SECRET_KEY=${PLANKA_SECRET_KEY}
+      - DEFAULT_ADMIN_EMAIL=admin@example.com
+      - DEFAULT_ADMIN_PASSWORD=${PLANKA_ADMIN_PASSWORD}
+      - DEFAULT_ADMIN_NAME=Admin
+      - DEFAULT_ADMIN_USERNAME=admin
+      - LOG_LEVEL=warn
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:16-alpine
+    restart: "no"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=planka
+      - POSTGRES_PASSWORD=${PLANKA_DB_PASSWORD}
+
+volumes:
+  data:
+  db-data:

@@ -1,0 +1,2817 @@
+{
+  "users": [
+    {
+      "email": "anna@example.com",
+      "name": "Anna Keller"
+    },
+    {
+      "email": "ben@example.com",
+      "name": "Ben Okafor"
+    },
+    {
+      "email": "chiara@example.com",
+      "name": "Chiara Rossi"
+    },
+    {
+      "email": "dev@example.com",
+      "name": "Dev Patel"
+    }
+  ],
+  "projects": [
+    {
+      "name": "Product launch",
+      "boards": [
+        {
+          "name": "Website",
+          "members": [
+            "anna@example.com",
+            "ben@example.com",
+            "chiara@example.com",
+            "dev@example.com"
+          ],
+          "labels": [
+            {
+              "ID": 5,
+              "Name": "Blocked",
+              "Color": "orange"
+            },
+            {
+              "ID": 1,
+              "Name": "Bug",
+              "Color": "red"
+            },
+            {
+              "ID": 3,
+              "Name": "Design",
+              "Color": "purple"
+            },
+            {
+              "ID": 4,
+              "Name": "Docs",
+              "Color": "sky"
+            },
+            {
+              "ID": 2,
+              "Name": "Feature",
+              "Color": "green"
+            },
+            {
+              "ID": 8,
+              "Name": "Ops",
+              "Color": "grey"
+            },
+            {
+              "ID": 6,
+              "Name": "Quick win",
+              "Color": "yellow"
+            },
+            {
+              "ID": 7,
+              "Name": "Research",
+              "Color": "blue"
+            }
+          ],
+          "lists": [
+            {
+              "name": "To do",
+              "cards": [
+                {
+                  "title": "Remove error page"
+                },
+                {
+                  "title": "Fix archive view",
+                  "labels": [
+                    "Research"
+                  ]
+                },
+                {
+                  "title": "Remove archive view"
+                }
+              ]
+            },
+            {
+              "name": "Doing",
+              "cards": [
+                {
+                  "title": "Measure keyboard moves",
+                  "due_on": "2026-11-16",
+                  "labels": [
+                    "Docs",
+                    "Quick win"
+                  ],
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                },
+                {
+                  "title": "Design label picker",
+                  "labels": [
+                    "Docs"
+                  ],
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Document comment editor",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Design"
+                  ],
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Can we split this in two?"
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "Looks good to me."
+                    },
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Done",
+              "cards": [
+                {
+                  "title": "Fix presence avatars",
+                  "due_on": "2026-11-06"
+                },
+                {
+                  "title": "Polish keyboard moves",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                },
+                {
+                  "title": "Refactor error page",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "due_on": "2026-10-11",
+                  "labels": [
+                    "Feature"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Release 2.0",
+          "members": [
+            "anna@example.com",
+            "ben@example.com",
+            "chiara@example.com",
+            "dev@example.com"
+          ],
+          "labels": [
+            {
+              "ID": 13,
+              "Name": "Blocked",
+              "Color": "orange"
+            },
+            {
+              "ID": 9,
+              "Name": "Bug",
+              "Color": "red"
+            },
+            {
+              "ID": 11,
+              "Name": "Design",
+              "Color": "purple"
+            },
+            {
+              "ID": 12,
+              "Name": "Docs",
+              "Color": "sky"
+            },
+            {
+              "ID": 10,
+              "Name": "Feature",
+              "Color": "green"
+            },
+            {
+              "ID": 16,
+              "Name": "Ops",
+              "Color": "grey"
+            },
+            {
+              "ID": 14,
+              "Name": "Quick win",
+              "Color": "yellow"
+            },
+            {
+              "ID": 15,
+              "Name": "Research",
+              "Color": "blue"
+            }
+          ],
+          "lists": [
+            {
+              "name": "Ideas",
+              "cards": [
+                {
+                  "title": "Document Caddy config",
+                  "due_on": "2026-11-04"
+                },
+                {
+                  "title": "Fix error page",
+                  "labels": [
+                    "Blocked",
+                    "Research"
+                  ]
+                },
+                {
+                  "title": "Design load test",
+                  "labels": [
+                    "Docs"
+                  ],
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                },
+                {
+                  "title": "Measure load test",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Bug",
+                    "Quick win"
+                  ]
+                },
+                {
+                  "title": "Design systemd unit",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    }
+                  ]
+                },
+                {
+                  "title": "Remove login form",
+                  "labels": [
+                    "Blocked"
+                  ],
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Polish export to CSV",
+                  "due_on": "2026-11-05",
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Looks good to me."
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                },
+                {
+                  "title": "Measure archive view",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "due_on": "2026-10-01",
+                  "labels": [
+                    "Design",
+                    "Ops"
+                  ],
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Looks good to me."
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    }
+                  ]
+                },
+                {
+                  "title": "Polish keyboard moves",
+                  "labels": [
+                    "Blocked",
+                    "Bug"
+                  ]
+                },
+                {
+                  "title": "Design due date reminder",
+                  "due_on": "2026-10-14",
+                  "labels": [
+                    "Design",
+                    "Research"
+                  ],
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    },
+                    {
+                      "author": "ben@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Speed up keyboard moves",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "due_on": "2026-11-21",
+                  "labels": [
+                    "Docs",
+                    "Research"
+                  ],
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    },
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    }
+                  ]
+                },
+                {
+                  "title": "Polish rate limiting",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "due_on": "2026-11-26",
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Remove label picker",
+                  "labels": [
+                    "Feature"
+                  ],
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    }
+                  ]
+                },
+                {
+                  "title": "Polish label picker",
+                  "labels": [
+                    "Feature"
+                  ],
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Design empty states",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Docs"
+                  ],
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Remove login form",
+                  "labels": [
+                    "Blocked",
+                    "Docs"
+                  ],
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Speed up search"
+                },
+                {
+                  "title": "Refactor empty states"
+                },
+                {
+                  "title": "Document keyboard moves",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "due_on": "2026-10-07",
+                  "labels": [
+                    "Docs",
+                    "Quick win"
+                  ]
+                },
+                {
+                  "title": "Polish onboarding tour",
+                  "due_on": "2026-10-16",
+                  "labels": [
+                    "Ops",
+                    "Research"
+                  ],
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "ben@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                },
+                {
+                  "title": "Refactor board header",
+                  "labels": [
+                    "Ops"
+                  ],
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Looks good to me."
+                    }
+                  ]
+                },
+                {
+                  "title": "Fix search",
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "ben@example.com",
+                      "body": "Looks good to me."
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "Looks good to me."
+                    }
+                  ]
+                },
+                {
+                  "title": "Speed up board header"
+                },
+                {
+                  "title": "Design comment editor",
+                  "due_on": "2026-11-02",
+                  "labels": [
+                    "Design",
+                    "Research"
+                  ],
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    }
+                  ]
+                },
+                {
+                  "title": "Test audit log",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Design"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Can we split this in two?"
+                    },
+                    {
+                      "author": "chiara@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Test onboarding tour",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "due_on": "2026-10-28",
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Remove audit log",
+                  "labels": [
+                    "Blocked",
+                    "Ops"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Looks good to me."
+                    },
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Speed up empty states",
+                  "labels": [
+                    "Bug"
+                  ],
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "Looks good to me."
+                    }
+                  ]
+                },
+                {
+                  "title": "Remove export to CSV",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Looks good to me."
+                    },
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    }
+                  ]
+                },
+                {
+                  "title": "Add markdown preview",
+                  "labels": [
+                    "Design"
+                  ]
+                },
+                {
+                  "title": "Document focus ring",
+                  "labels": [
+                    "Docs",
+                    "Feature"
+                  ],
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                },
+                {
+                  "title": "Document keyboard moves",
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                },
+                {
+                  "title": "Measure Caddy config",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "due_on": "2026-11-26",
+                  "labels": [
+                    "Bug",
+                    "Research"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Looks good to me."
+                    }
+                  ]
+                },
+                {
+                  "title": "Remove empty states",
+                  "labels": [
+                    "Design"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Document card drag preview",
+                  "labels": [
+                    "Feature"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Blocked on the API change."
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Speed up comment editor",
+                  "labels": [
+                    "Blocked",
+                    "Research"
+                  ]
+                },
+                {
+                  "title": "Test presence avatars",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Docs",
+                    "Ops"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Looks good to me."
+                    },
+                    {
+                      "author": "ben@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Backlog",
+              "cards": [
+                {
+                  "title": "Polish keyboard moves",
+                  "labels": [
+                    "Bug",
+                    "Ops"
+                  ],
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Design dark mode",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Docs",
+                    "Ops"
+                  ],
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Blocked on the API change."
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "Blocked on the API change."
+                    },
+                    {
+                      "author": "ben@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Refactor Caddy config",
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Add login form",
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    },
+                    {
+                      "author": "ben@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    }
+                  ]
+                },
+                {
+                  "title": "Remove comment editor",
+                  "due_on": "2026-11-19",
+                  "labels": [
+                    "Blocked",
+                    "Research"
+                  ],
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    }
+                  ]
+                },
+                {
+                  "title": "Remove SQLite backup",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Feature"
+                  ],
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Looks good to me."
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Test mobile layout",
+                  "due_on": "2026-11-07"
+                },
+                {
+                  "title": "Polish login form",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "due_on": "2026-11-04",
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    }
+                  ]
+                },
+                {
+                  "title": "Fix comment editor",
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Remove empty states",
+                  "labels": [
+                    "Bug",
+                    "Research"
+                  ],
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Blocked on the API change."
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Speed up card drag preview",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Design"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Can we split this in two?"
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Polish archive view",
+                  "labels": [
+                    "Feature",
+                    "Research"
+                  ]
+                },
+                {
+                  "title": "Design error page",
+                  "labels": [
+                    "Docs"
+                  ],
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Speed up Caddy config",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Docs",
+                    "Research"
+                  ],
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Blocked on the API change."
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Document session expiry",
+                  "labels": [
+                    "Docs",
+                    "Feature"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    }
+                  ]
+                },
+                {
+                  "title": "Remove onboarding tour",
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    }
+                  ]
+                },
+                {
+                  "title": "Polish audit log",
+                  "labels": [
+                    "Feature",
+                    "Ops"
+                  ],
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Looks good to me."
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    }
+                  ]
+                },
+                {
+                  "title": "Remove dark mode",
+                  "labels": [
+                    "Docs"
+                  ],
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                },
+                {
+                  "title": "Design audit log",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Quick win"
+                  ],
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Add markdown preview",
+                  "due_on": "2026-10-21",
+                  "labels": [
+                    "Bug"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Looks good to me."
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Refactor markdown preview",
+                  "due_on": "2026-11-20"
+                },
+                {
+                  "title": "Refactor export to CSV",
+                  "due_on": "2026-10-20",
+                  "labels": [
+                    "Ops"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Ready",
+              "cards": [
+                {
+                  "title": "Polish onboarding tour",
+                  "due_on": "2026-10-25"
+                },
+                {
+                  "title": "Add focus ring",
+                  "labels": [
+                    "Ops"
+                  ],
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    }
+                  ]
+                },
+                {
+                  "title": "Design markdown preview",
+                  "due_on": "2026-10-22",
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    }
+                  ]
+                },
+                {
+                  "title": "Refactor presence avatars"
+                },
+                {
+                  "title": "Remove presence avatars",
+                  "labels": [
+                    "Bug",
+                    "Research"
+                  ]
+                },
+                {
+                  "title": "Fix focus ring",
+                  "labels": [
+                    "Blocked"
+                  ],
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                },
+                {
+                  "title": "Measure markdown preview"
+                },
+                {
+                  "title": "Design board header",
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "Looks good to me."
+                    }
+                  ]
+                },
+                {
+                  "title": "Fix audit log",
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Looks good to me."
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "Looks good to me."
+                    },
+                    {
+                      "author": "ben@example.com",
+                      "body": "Looks good to me."
+                    }
+                  ]
+                },
+                {
+                  "title": "Polish markdown preview",
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Can we split this in two?"
+                    },
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                },
+                {
+                  "title": "Test systemd unit",
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Can we split this in two?"
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                },
+                {
+                  "title": "Measure SQLite backup",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Bug",
+                    "Design"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Blocked on the API change."
+                    },
+                    {
+                      "author": "ben@example.com",
+                      "body": "Blocked on the API change."
+                    },
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Looks good to me."
+                    }
+                  ]
+                },
+                {
+                  "title": "Remove session expiry",
+                  "labels": [
+                    "Docs"
+                  ],
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Blocked on the API change."
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "Looks good to me."
+                    }
+                  ]
+                },
+                {
+                  "title": "Document comment editor",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Design",
+                    "Docs"
+                  ]
+                },
+                {
+                  "title": "Polish systemd unit",
+                  "labels": [
+                    "Feature",
+                    "Quick win"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                },
+                {
+                  "title": "Speed up presence avatars",
+                  "due_on": "2026-10-30"
+                },
+                {
+                  "title": "Remove presence avatars",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Design"
+                  ],
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Blocked on the API change."
+                    },
+                    {
+                      "author": "ben@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Remove board header",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Quick win",
+                    "Research"
+                  ],
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Polish SQLite backup",
+                  "due_on": "2026-10-21",
+                  "labels": [
+                    "Research"
+                  ],
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Can we split this in two?"
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "Looks good to me."
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "Looks good to me."
+                    }
+                  ]
+                },
+                {
+                  "title": "Design onboarding tour",
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Blocked on the API change."
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "Blocked on the API change."
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "In progress",
+              "cards": [
+                {
+                  "title": "Fix board header",
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Looks good to me."
+                    }
+                  ]
+                },
+                {
+                  "title": "Design Caddy config",
+                  "due_on": "2026-11-16",
+                  "labels": [
+                    "Feature",
+                    "Ops"
+                  ]
+                },
+                {
+                  "title": "Measure login form",
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                },
+                {
+                  "title": "Document mobile layout",
+                  "labels": [
+                    "Research"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Looks good to me."
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "Can we split this in two?"
+                    },
+                    {
+                      "author": "ben@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    }
+                  ]
+                },
+                {
+                  "title": "Remove login form",
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Polish comment editor",
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Can we split this in two?"
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Fix dark mode",
+                  "labels": [
+                    "Quick win",
+                    "Research"
+                  ],
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Looks good to me."
+                    },
+                    {
+                      "author": "ben@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Add keyboard moves",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Quick win"
+                  ],
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Speed up dark mode",
+                  "due_on": "2026-11-01",
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Blocked on the API change."
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "ben@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Speed up audit log",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Feature"
+                  ]
+                },
+                {
+                  "title": "Document rate limiting",
+                  "labels": [
+                    "Feature",
+                    "Quick win"
+                  ]
+                },
+                {
+                  "title": "Speed up dark mode",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Bug",
+                    "Feature"
+                  ],
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Looks good to me."
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Polish due date reminder",
+                  "due_on": "2026-11-28",
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                },
+                {
+                  "title": "Design onboarding tour",
+                  "due_on": "2026-10-17",
+                  "labels": [
+                    "Ops"
+                  ],
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Can we split this in two?"
+                    },
+                    {
+                      "author": "chiara@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Speed up label picker",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Feature"
+                  ]
+                },
+                {
+                  "title": "Polish rate limiting",
+                  "labels": [
+                    "Blocked",
+                    "Docs"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    }
+                  ]
+                },
+                {
+                  "title": "Document card drag preview",
+                  "labels": [
+                    "Quick win"
+                  ]
+                },
+                {
+                  "title": "Design search",
+                  "due_on": "2026-10-30",
+                  "labels": [
+                    "Docs"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                },
+                {
+                  "title": "Refactor session expiry",
+                  "labels": [
+                    "Quick win",
+                    "Research"
+                  ],
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                },
+                {
+                  "title": "Refactor presence avatars",
+                  "labels": [
+                    "Feature",
+                    "Quick win"
+                  ],
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Blocked on the API change."
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Document focus ring",
+                  "labels": [
+                    "Blocked",
+                    "Docs"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Looks good to me."
+                    },
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Review",
+              "cards": [
+                {
+                  "title": "Polish load test"
+                },
+                {
+                  "title": "Speed up label picker",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Feature",
+                    "Quick win"
+                  ]
+                },
+                {
+                  "title": "Document dark mode",
+                  "labels": [
+                    "Design",
+                    "Quick win"
+                  ],
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Looks good to me."
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "ben@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Refactor export to CSV"
+                },
+                {
+                  "title": "Refactor Caddy config",
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "Looks good to me."
+                    }
+                  ]
+                },
+                {
+                  "title": "Test audit log",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "due_on": "2026-11-20",
+                  "labels": [
+                    "Ops"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Blocked on the API change."
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                },
+                {
+                  "title": "Remove archive view",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki."
+                },
+                {
+                  "title": "Design presence avatars",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Research"
+                  ],
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                },
+                {
+                  "title": "Polish comment editor",
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Speed up empty states",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Ops"
+                  ]
+                },
+                {
+                  "title": "Fix label picker",
+                  "labels": [
+                    "Design"
+                  ],
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Polish Caddy config",
+                  "due_on": "2026-10-04",
+                  "labels": [
+                    "Docs",
+                    "Feature"
+                  ]
+                },
+                {
+                  "title": "Measure label picker",
+                  "due_on": "2026-10-21",
+                  "labels": [
+                    "Quick win",
+                    "Research"
+                  ],
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "ben@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                },
+                {
+                  "title": "Remove archive view",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Docs"
+                  ],
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Blocked on the API change."
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Refactor session expiry",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Blocked",
+                    "Quick win"
+                  ],
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                },
+                {
+                  "title": "Speed up archive view",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                },
+                {
+                  "title": "Design label picker",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "due_on": "2026-10-01",
+                  "labels": [
+                    "Blocked",
+                    "Bug"
+                  ],
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Looks good to me."
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                },
+                {
+                  "title": "Refactor audit log",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Bug",
+                    "Docs"
+                  ],
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Can we split this in two?"
+                    },
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    }
+                  ]
+                },
+                {
+                  "title": "Test Caddy config",
+                  "due_on": "2026-10-05",
+                  "labels": [
+                    "Quick win",
+                    "Research"
+                  ]
+                },
+                {
+                  "title": "Speed up card drag preview",
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Design session expiry",
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Can we split this in two?"
+                    },
+                    {
+                      "author": "ben@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Measure presence avatars",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Measure Caddy config",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "due_on": "2026-10-24",
+                  "labels": [
+                    "Bug",
+                    "Feature"
+                  ]
+                },
+                {
+                  "title": "Add error page"
+                },
+                {
+                  "title": "Speed up presence avatars",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki."
+                },
+                {
+                  "title": "Speed up audit log",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Can we split this in two?"
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Testing",
+              "cards": [
+                {
+                  "title": "Remove card drag preview",
+                  "labels": [
+                    "Ops"
+                  ]
+                },
+                {
+                  "title": "Test label picker",
+                  "labels": [
+                    "Bug"
+                  ]
+                },
+                {
+                  "title": "Remove board header",
+                  "due_on": "2026-10-29"
+                },
+                {
+                  "title": "Design label picker",
+                  "due_on": "2026-11-17",
+                  "labels": [
+                    "Quick win"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Can we split this in two?"
+                    },
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Can we split this in two?"
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "Looks good to me."
+                    }
+                  ]
+                },
+                {
+                  "title": "Speed up due date reminder",
+                  "labels": [
+                    "Bug"
+                  ],
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                },
+                {
+                  "title": "Speed up rate limiting"
+                },
+                {
+                  "title": "Speed up board header",
+                  "labels": [
+                    "Docs"
+                  ],
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Remove label picker",
+                  "labels": [
+                    "Ops"
+                  ],
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "Looks good to me."
+                    }
+                  ]
+                },
+                {
+                  "title": "Add audit log",
+                  "labels": [
+                    "Bug"
+                  ],
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Blocked on the API change."
+                    },
+                    {
+                      "author": "chiara@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Add export to CSV",
+                  "due_on": "2026-10-17",
+                  "labels": [
+                    "Feature"
+                  ],
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Measure archive view",
+                  "labels": [
+                    "Blocked",
+                    "Ops"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                },
+                {
+                  "title": "Fix due date reminder",
+                  "labels": [
+                    "Research"
+                  ],
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Fix load test",
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Design presence avatars",
+                  "due_on": "2026-10-19",
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Refactor markdown preview",
+                  "labels": [
+                    "Blocked",
+                    "Research"
+                  ],
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Remove onboarding tour",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                },
+                {
+                  "title": "Test audit log",
+                  "labels": [
+                    "Design",
+                    "Quick win"
+                  ],
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Looks good to me."
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Measure export to CSV"
+                },
+                {
+                  "title": "Design label picker",
+                  "labels": [
+                    "Blocked"
+                  ],
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "Can we split this in two?"
+                    },
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Looks good to me."
+                    }
+                  ]
+                },
+                {
+                  "title": "Design load test",
+                  "labels": [
+                    "Bug",
+                    "Ops"
+                  ],
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                },
+                {
+                  "title": "Fix empty states",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Bug",
+                    "Quick win"
+                  ],
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    }
+                  ]
+                },
+                {
+                  "title": "Remove login form",
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    },
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Remove audit log",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Blocked",
+                    "Ops"
+                  ],
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Can we split this in two?"
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                },
+                {
+                  "title": "Refactor session expiry",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Can we split this in two?"
+                    },
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Document dark mode",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "due_on": "2026-11-03",
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "Can we split this in two?"
+                    },
+                    {
+                      "author": "ben@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Add empty states",
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Can we split this in two?"
+                    },
+                    {
+                      "author": "ben@example.com",
+                      "body": "Looks good to me."
+                    }
+                  ]
+                },
+                {
+                  "title": "Remove mobile layout",
+                  "due_on": "2026-11-02",
+                  "labels": [
+                    "Feature"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    }
+                  ]
+                },
+                {
+                  "title": "Speed up systemd unit",
+                  "due_on": "2026-11-10",
+                  "labels": [
+                    "Bug"
+                  ]
+                },
+                {
+                  "title": "Design empty states",
+                  "labels": [
+                    "Docs",
+                    "Ops"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Blocked on the API change."
+                    },
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Looks good to me."
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    }
+                  ]
+                },
+                {
+                  "title": "Add audit log",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "due_on": "2026-11-28",
+                  "labels": [
+                    "Ops",
+                    "Quick win"
+                  ],
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Blocked on the API change."
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Test archive view",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Ops"
+                  ]
+                },
+                {
+                  "title": "Document presence avatars",
+                  "labels": [
+                    "Feature",
+                    "Ops"
+                  ],
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Measure label picker",
+                  "due_on": "2026-11-18",
+                  "labels": [
+                    "Research"
+                  ]
+                },
+                {
+                  "title": "Speed up card drag preview",
+                  "due_on": "2026-11-05",
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Looks good to me."
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Done",
+              "cards": [
+                {
+                  "title": "Speed up label picker",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                },
+                {
+                  "title": "Add label picker",
+                  "labels": [
+                    "Feature"
+                  ],
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Can we split this in two?"
+                    },
+                    {
+                      "author": "ben@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                },
+                {
+                  "title": "Add label picker",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Bug"
+                  ]
+                },
+                {
+                  "title": "Refactor export to CSV",
+                  "labels": [
+                    "Feature"
+                  ],
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    },
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Refactor dark mode",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Design",
+                    "Ops"
+                  ],
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Can we split this in two?"
+                    },
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Document comment editor",
+                  "labels": [
+                    "Ops"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Looks good to me."
+                    }
+                  ]
+                },
+                {
+                  "title": "Design error page",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Docs",
+                    "Research"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Test presence avatars",
+                  "labels": [
+                    "Quick win"
+                  ]
+                },
+                {
+                  "title": "Design dark mode",
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Looks good to me."
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "Looks good to me."
+                    }
+                  ]
+                },
+                {
+                  "title": "Test comment editor"
+                },
+                {
+                  "title": "Speed up presence avatars",
+                  "labels": [
+                    "Bug"
+                  ],
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Polish mobile layout",
+                  "labels": [
+                    "Design",
+                    "Research"
+                  ],
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Looks good to me."
+                    }
+                  ]
+                },
+                {
+                  "title": "Document due date reminder",
+                  "due_on": "2026-10-20",
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Looks good to me."
+                    },
+                    {
+                      "author": "chiara@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Fix login form",
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    },
+                    {
+                      "author": "ben@example.com",
+                      "body": "Looks good to me."
+                    }
+                  ]
+                },
+                {
+                  "title": "Design Caddy config",
+                  "labels": [
+                    "Bug",
+                    "Ops"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Looks good to me."
+                    }
+                  ]
+                },
+                {
+                  "title": "Speed up empty states"
+                },
+                {
+                  "title": "Speed up mobile layout",
+                  "due_on": "2026-10-01",
+                  "labels": [
+                    "Design",
+                    "Ops"
+                  ],
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Can we split this in two?"
+                    },
+                    {
+                      "author": "ben@example.com",
+                      "body": "Looks good to me."
+                    }
+                  ]
+                },
+                {
+                  "title": "Polish dark mode",
+                  "labels": [
+                    "Feature"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Refactor search",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Speed up audit log",
+                  "due_on": "2026-11-06",
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "ben@example.com",
+                      "body": "Looks good to me."
+                    },
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Looks good to me."
+                    }
+                  ]
+                },
+                {
+                  "title": "Speed up board header",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    },
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Looks good to me."
+                    }
+                  ]
+                },
+                {
+                  "title": "Polish export to CSV",
+                  "labels": [
+                    "Research"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    }
+                  ]
+                },
+                {
+                  "title": "Remove Caddy config",
+                  "labels": [
+                    "Ops",
+                    "Quick win"
+                  ],
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Measure dark mode",
+                  "labels": [
+                    "Blocked"
+                  ],
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "chiara@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "Looks good to me."
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Released",
+              "cards": [
+                {
+                  "title": "Speed up audit log",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "due_on": "2026-11-04",
+                  "labels": [
+                    "Ops"
+                  ]
+                },
+                {
+                  "title": "Measure dark mode",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "due_on": "2026-11-03",
+                  "labels": [
+                    "Docs"
+                  ],
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "ben@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    }
+                  ]
+                },
+                {
+                  "title": "Document markdown preview",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki."
+                },
+                {
+                  "title": "Refactor login form",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Feature"
+                  ],
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Can we split this in two?"
+                    }
+                  ]
+                },
+                {
+                  "title": "Refactor card drag preview",
+                  "labels": [
+                    "Docs"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Looks good to me."
+                    }
+                  ]
+                },
+                {
+                  "title": "Test comment editor",
+                  "comments": [
+                    {
+                      "author": "anna@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "ben@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    }
+                  ]
+                },
+                {
+                  "title": "Design keyboard moves",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "comments": [
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    }
+                  ]
+                },
+                {
+                  "title": "Measure error page",
+                  "labels": [
+                    "Blocked",
+                    "Ops"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    }
+                  ]
+                },
+                {
+                  "title": "Measure onboarding tour",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Blocked on the API change."
+                    },
+                    {
+                      "author": "chiara@example.com",
+                      "body": "Looks good to me."
+                    }
+                  ]
+                },
+                {
+                  "title": "Measure export to CSV",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "labels": [
+                    "Quick win",
+                    "Research"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Looks good to me."
+                    }
+                  ]
+                },
+                {
+                  "title": "Speed up presence avatars",
+                  "labels": [
+                    "Docs",
+                    "Ops"
+                  ],
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Looks good to me."
+                    },
+                    {
+                      "author": "ben@example.com",
+                      "body": "Can we split this in two?"
+                    },
+                    {
+                      "author": "anna@example.com",
+                      "body": "I'll pick this up tomorrow."
+                    }
+                  ]
+                },
+                {
+                  "title": "Design rate limiting",
+                  "description": "Why: readers asked for it.\n\n- [ ] agree on the scope\n- [ ] build it\n- [ ] **measure** before and after\n\nSee the notes in the wiki.",
+                  "due_on": "2026-10-30",
+                  "labels": [
+                    "Quick win",
+                    "Research"
+                  ],
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "Blocked on the API change."
+                    },
+                    {
+                      "author": "ben@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Test presence avatars",
+                  "labels": [
+                    "Design"
+                  ],
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Remove board header",
+                  "labels": [
+                    "Ops"
+                  ],
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Blocked on the API change."
+                    }
+                  ]
+                },
+                {
+                  "title": "Speed up rate limiting",
+                  "labels": [
+                    "Feature",
+                    "Research"
+                  ],
+                  "comments": [
+                    {
+                      "author": "dev@example.com",
+                      "body": "Looks good to me."
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "Looks good to me."
+                    }
+                  ]
+                },
+                {
+                  "title": "Measure card drag preview",
+                  "due_on": "2026-11-09",
+                  "comments": [
+                    {
+                      "author": "ben@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    },
+                    {
+                      "author": "dev@example.com",
+                      "body": "Measured it: 40 ms faster."
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

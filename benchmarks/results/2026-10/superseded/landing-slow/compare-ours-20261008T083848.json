@@ -1,0 +1,143 @@
+{
+  "app": "kanban (Go, Datastar)",
+  "base": "http://127.0.0.1:19000",
+  "date": "2026-10-08T08:39:49.800Z",
+  "profile": "cmd/netem 150 ms RTT, 1.6 Mbps down, 750 kbps up; measured person 4x CPU; 1280x860; pointer drags",
+  "load": {
+    "transferred_bytes": 57299,
+    "ms_to_cards": 433,
+    "ms_to_load_event": 626,
+    "lcp_ms": 580,
+    "cls": 0
+  },
+  "move_drop_to_shown_ms": {
+    "n": 20,
+    "p50": 272,
+    "p95": 382,
+    "max": 382,
+    "samples": [
+      265,
+      277,
+      268,
+      259,
+      270,
+      269,
+      278,
+      273,
+      267,
+      268,
+      278,
+      263,
+      259,
+      293,
+      237,
+      273,
+      272,
+      298,
+      352,
+      382
+    ]
+  },
+  "moves_not_landed": 0,
+  "move_drop_to_confirmed_ms": {
+    "n": 20,
+    "p50": 275,
+    "p95": 383,
+    "max": 383,
+    "samples": [
+      266,
+      278,
+      269,
+      260,
+      271,
+      323,
+      278,
+      275,
+      268,
+      269,
+      278,
+      263,
+      261,
+      296,
+      283,
+      274,
+      273,
+      299,
+      354,
+      383
+    ]
+  },
+  "move_seen_by_second_person_ms": {
+    "n": 20,
+    "p50": 211,
+    "p95": 339,
+    "max": 339,
+    "samples": [
+      205,
+      230,
+      194,
+      203,
+      211,
+      230,
+      227,
+      204,
+      227,
+      224,
+      209,
+      208,
+      209,
+      236,
+      194,
+      211,
+      211,
+      258,
+      301,
+      339
+    ]
+  },
+  "open_card_ms": {
+    "n": 5,
+    "p50": 261,
+    "p95": 304,
+    "max": 304,
+    "samples": [
+      304,
+      261,
+      262,
+      253,
+      261
+    ]
+  },
+  "comment_to_shown_ms": {
+    "n": 5,
+    "p50": 319,
+    "p95": 329,
+    "max": 329,
+    "samples": [
+      296,
+      329,
+      303,
+      319,
+      321
+    ]
+  },
+  "comment_to_confirmed_ms": {
+    "n": 5,
+    "p50": 319,
+    "p95": 329,
+    "max": 329,
+    "samples": [
+      296,
+      329,
+      303,
+      319,
+      321
+    ]
+  },
+  "after_session": {
+    "dom_nodes": 1843,
+    "inp_ms": 64,
+    "cls_session": 0.0001,
+    "js_heap_used_bytes": 4372296
+  }
+}

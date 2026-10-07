@@ -1,0 +1,395 @@
+{
+  "app": "kanban (Go)",
+  "base": "http://127.0.0.1:19000",
+  "board": 2,
+  "date": "2026-10-07T14:02:52.712Z",
+  "profile": "cmd/netem 150 ms RTT, 1.6 Mbps down, 750 kbps up; Chrome 4x CPU; 412x915",
+  "load": {
+    "ms_to_load_event": 1208,
+    "transferred_bytes": 43743,
+    "lcp_ms": 392,
+    "cls": 0
+  },
+  "move_to_confirmed_ms": {
+    "n": 20,
+    "p50": 220,
+    "p95": 248,
+    "max": 248
+  },
+  "move_seen_by_second_person_ms": {
+    "n": 20,
+    "p50": 189,
+    "p95": 200,
+    "max": 200
+  },
+  "open_card_ms": {
+    "n": 5,
+    "p50": 284,
+    "p95": 339,
+    "max": 339
+  },
+  "comment_to_visible_ms": {
+    "n": 5,
+    "p50": 281,
+    "p95": 499,
+    "max": 499
+  },
+  "after_session": {
+    "dom_nodes": 1635,
+    "inp_ms": 160,
+    "slow_interactions": [
+      {
+        "name": "keydown",
+        "ms": 72,
+        "input": 8,
+        "processing": 35,
+        "target": "detail"
+      },
+      {
+        "name": "keydown",
+        "ms": 88,
+        "input": 8,
+        "processing": 33,
+        "target": "detail"
+      },
+      {
+        "name": "keyup",
+        "ms": 64,
+        "input": 26,
+        "processing": 0,
+        "target": "card-27-t"
+      },
+      {
+        "name": "keydown",
+        "ms": 80,
+        "input": 9,
+        "processing": 33,
+        "target": "detail"
+      },
+      {
+        "name": "keydown",
+        "ms": 88,
+        "input": 8,
+        "processing": 32,
+        "target": "detail"
+      },
+      {
+        "name": "keydown",
+        "ms": 64,
+        "input": 0,
+        "processing": 34,
+        "target": "btn sm"
+      },
+      {
+        "name": "keydown",
+        "ms": 80,
+        "input": 29,
+        "processing": 1,
+        "target": "card-128"
+      },
+      {
+        "name": "keydown",
+        "ms": 80,
+        "input": 37,
+        "processing": 1,
+        "target": "card-128"
+      },
+      {
+        "name": "keydown",
+        "ms": 72,
+        "input": 29,
+        "processing": 0,
+        "target": "card-131"
+      },
+      {
+        "name": "keydown",
+        "ms": 72,
+        "input": 29,
+        "processing": 1,
+        "target": "card-131"
+      },
+      {
+        "name": "keyup",
+        "ms": 88,
+        "input": 39,
+        "processing": 9,
+        "target": "card-131"
+      },
+      {
+        "name": "keydown",
+        "ms": 64,
+        "input": 0,
+        "processing": 0,
+        "target": "card-131"
+      },
+      {
+        "name": "keydown",
+        "ms": 64,
+        "input": 0,
+        "processing": 1,
+        "target": "card-131"
+      },
+      {
+        "name": "keydown",
+        "ms": 72,
+        "input": 4,
+        "processing": 0,
+        "target": "card-139"
+      },
+      {
+        "name": "keydown",
+        "ms": 64,
+        "input": 1,
+        "processing": 1,
+        "target": "card-139"
+      },
+      {
+        "name": "keyup",
+        "ms": 64,
+        "input": 9,
+        "processing": 0,
+        "target": "card-139"
+      },
+      {
+        "name": "keyup",
+        "ms": 72,
+        "input": 15,
+        "processing": 15,
+        "target": "card-142"
+      },
+      {
+        "name": "keydown",
+        "ms": 64,
+        "input": 5,
+        "processing": 1,
+        "target": "card-142"
+      },
+      {
+        "name": "keydown",
+        "ms": 64,
+        "input": 9,
+        "processing": 1,
+        "target": "card-143"
+      },
+      {
+        "name": "keyup",
+        "ms": 72,
+        "input": 17,
+        "processing": 15,
+        "target": "card-143"
+      },
+      {
+        "name": "keydown",
+        "ms": 64,
+        "input": 0,
+        "processing": 0,
+        "target": "card-147"
+      },
+      {
+        "name": "keydown",
+        "ms": 88,
+        "input": 5,
+        "processing": 0,
+        "target": "card-149"
+      },
+      {
+        "name": "keydown",
+        "ms": 80,
+        "input": 0,
+        "processing": 1,
+        "target": "card-149"
+      },
+      {
+        "name": "keyup",
+        "ms": 80,
+        "input": 11,
+        "processing": 0,
+        "target": "card-149"
+      },
+      {
+        "name": "keyup",
+        "ms": 64,
+        "input": 3,
+        "processing": 23,
+        "target": "card-149"
+      },
+      {
+        "name": "keydown",
+        "ms": 64,
+        "input": 4,
+        "processing": 0,
+        "target": "card-154"
+      },
+      {
+        "name": "keydown",
+        "ms": 64,
+        "input": 1,
+        "processing": 1,
+        "target": "card-154"
+      },
+      {
+        "name": "keyup",
+        "ms": 88,
+        "input": 15,
+        "processing": 28,
+        "target": "card-163"
+      },
+      {
+        "name": "keydown",
+        "ms": 64,
+        "input": 0,
+        "processing": 0,
+        "target": "card-167"
+      },
+      {
+        "name": "keyup",
+        "ms": 64,
+        "input": 16,
+        "processing": 24,
+        "target": "card-167"
+      },
+      {
+        "name": "keydown",
+        "ms": 80,
+        "input": 5,
+        "processing": 0,
+        "target": "card-196"
+      },
+      {
+        "name": "keydown",
+        "ms": 72,
+        "input": 0,
+        "processing": 1,
+        "target": "card-196"
+      },
+      {
+        "name": "keyup",
+        "ms": 72,
+        "input": 11,
+        "processing": 7,
+        "target": "card-196"
+      },
+      {
+        "name": "keydown",
+        "ms": 64,
+        "input": 0,
+        "processing": 0,
+        "target": "card-197"
+      },
+      {
+        "name": "keydown",
+        "ms": 152,
+        "input": 5,
+        "processing": 0,
+        "target": "card-209"
+      },
+      {
+        "name": "keydown",
+        "ms": 144,
+        "input": 0,
+        "processing": 1,
+        "target": "card-209"
+      },
+      {
+        "name": "keyup",
+        "ms": 160,
+        "input": 137,
+        "processing": 0,
+        "target": "card-209"
+      },
+      {
+        "name": "keydown",
+        "ms": 64,
+        "input": 24,
+        "processing": 0,
+        "target": "card-209"
+      },
+      {
+        "name": "keyup",
+        "ms": 72,
+        "input": 14,
+        "processing": 14,
+        "target": "card-128"
+      },
+      {
+        "name": "keyup",
+        "ms": 72,
+        "input": 16,
+        "processing": 15,
+        "target": "card-121"
+      },
+      {
+        "name": "keydown",
+        "ms": 72,
+        "input": 30,
+        "processing": 1,
+        "target": "card-118"
+      },
+      {
+        "name": "keyup",
+        "ms": 64,
+        "input": 19,
+        "processing": 8,
+        "target": "card-118"
+      },
+      {
+        "name": "keydown",
+        "ms": 80,
+        "input": 43,
+        "processing": 0,
+        "target": "card-115"
+      },
+      {
+        "name": "keyup",
+        "ms": 64,
+        "input": 13,
+        "processing": 9,
+        "target": "card-115"
+      },
+      {
+        "name": "keydown",
+        "ms": 104,
+        "input": 2,
+        "processing": 0,
+        "target": "card-115"
+      },
+      {
+        "name": "keydown",
+        "ms": 152,
+        "input": 89,
+        "processing": 1,
+        "target": "card-115"
+      },
+      {
+        "name": "keyup",
+        "ms": 104,
+        "input": 34,
+        "processing": 11,
+        "target": "card-115"
+      },
+      {
+        "name": "keydown",
+        "ms": 64,
+        "input": 32,
+        "processing": 1,
+        "target": "card-112"
+      },
+      {
+        "name": "keyup",
+        "ms": 64,
+        "input": 21,
+        "processing": 8,
+        "target": "card-112"
+      },
+      {
+        "name": "keydown",
+        "ms": 80,
+        "input": 35,
+        "processing": 2,
+        "target": "card-105"
+      }
+    ],
+    "cls_session": 0.0003,
+    "js_heap_used_bytes": 4570048
+  }
+}

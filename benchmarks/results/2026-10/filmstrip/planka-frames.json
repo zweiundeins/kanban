@@ -1,0 +1,38 @@
+{
+  "app": "planka",
+  "base": "http://127.0.0.1:19001",
+  "board": "/boards/1880842997554218060",
+  "frames": [
+    {
+      "ms": 500,
+      "painted_ms": 14,
+      "file": "/tmp/filmstrip/planka-500.jpg"
+    },
+    {
+      "ms": 1000,
+      "painted_ms": 14,
+      "file": "/tmp/filmstrip/planka-1000.jpg"
+    },
+    {
+      "ms": 2000,
+      "painted_ms": 1246,
+      "file": "/tmp/filmstrip/planka-2000.jpg"
+    },
+    {
+      "ms": 4000,
+      "painted_ms": 1246,
+      "file": "/tmp/filmstrip/planka-4000.jpg"
+    },
+    {
+      "ms": 8000,
+      "painted_ms": 1246,
+      "file": "/tmp/filmstrip/planka-8000.jpg"
+    },
+    {
+      "ms": 16000,
+      "painted_ms": 15881,
+      "file": "/tmp/filmstrip/planka-16000.jpg"
+    }
+  ],
+  "screenshots": 183
+}

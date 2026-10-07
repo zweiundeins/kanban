@@ -1,0 +1,56 @@
+{
+  "app": "PLANKA Community 2.2.1",
+  "base": "http://127.0.0.1:19001",
+  "date": "2026-10-07T14:34:10.938Z",
+  "profile": "cmd/netem 150 ms RTT, 1.6 Mbps down, 750 kbps up; measured person 4x CPU; 1280x860; pointer drags",
+  "load": {
+    "ms_to_load_event": 11775,
+    "ms_to_cards": 14651,
+    "transferred_bytes": 2575704,
+    "lcp_ms": 14580,
+    "cls": 0.02
+  },
+  "move_drop_to_shown_ms": {
+    "n": 10,
+    "p50": 479,
+    "p95": 513,
+    "max": 513
+  },
+  "moves_not_landed": 0,
+  "move_drop_to_confirmed_ms": {
+    "n": 10,
+    "p50": 704,
+    "p95": 733,
+    "max": 733
+  },
+  "move_seen_by_second_person_ms": {
+    "n": 10,
+    "p50": 654,
+    "p95": 685,
+    "max": 685
+  },
+  "open_card_ms": {
+    "n": 5,
+    "p50": 305,
+    "p95": 377,
+    "max": 377
+  },
+  "comment_to_shown_ms": {
+    "n": 5,
+    "p50": 95,
+    "p95": 132,
+    "max": 132
+  },
+  "comment_to_confirmed_ms": {
+    "n": 5,
+    "p50": 230,
+    "p95": 249,
+    "max": 249
+  },
+  "after_session": {
+    "dom_nodes": 3487,
+    "inp_ms": 352,
+    "cls_session": 0.0309,
+    "js_heap_used_bytes": 45512044
+  }
+}

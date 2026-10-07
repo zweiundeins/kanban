@@ -1,0 +1,38 @@
+{
+  "app": "ours",
+  "base": "http://127.0.0.1:19000",
+  "board": "/boards/2",
+  "frames": [
+    {
+      "ms": 500,
+      "painted_ms": 12,
+      "file": "../results/2026-10/filmstrip/ours-500.jpg"
+    },
+    {
+      "ms": 1000,
+      "painted_ms": 857,
+      "file": "../results/2026-10/filmstrip/ours-1000.jpg"
+    },
+    {
+      "ms": 2000,
+      "painted_ms": 857,
+      "file": "../results/2026-10/filmstrip/ours-2000.jpg"
+    },
+    {
+      "ms": 4000,
+      "painted_ms": 857,
+      "file": "../results/2026-10/filmstrip/ours-4000.jpg"
+    },
+    {
+      "ms": 8000,
+      "painted_ms": 857,
+      "file": "../results/2026-10/filmstrip/ours-8000.jpg"
+    },
+    {
+      "ms": 16000,
+      "painted_ms": 857,
+      "file": "../results/2026-10/filmstrip/ours-16000.jpg"
+    }
+  ],
+  "screenshots": 18
+}
