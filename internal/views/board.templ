@@ -1,0 +1,341 @@
+package views
+
+import (
+	"kanban/internal/app"
+	"time"
+)
+
+// BoardShell is the board page around the live fragments, which the
+// renderer made (the same bytes the stream sends).
+type BoardShell struct {
+	Page     Page
+	Board    *app.Board
+	Tab      string
+	Open     int64
+	Presence []byte
+	Lanes    []byte
+	Detail   []byte
+}
+
+func signalsFor(tab string, open int64) string {
+	return `{"_tab":` + js(tab) + `,"_card":` + id(open) + `,"_pend":{},"_acks":{},"_edit":"","_val":"","_in":{},"_net":"","_offline":false,"_beat":0,"_ping":0}`
+}
+
+// fetchEvents watches every request. The stream (on this element) going
+// away marks the page as offline until the next frame; an action that
+// can't reach the server says so while Datastar retries it (op ids make a
+// retry safe), and one that finally fails is marked failed, not pending.
+const fetchEvents = `evt.detail.el?.id === 'live'
+	? (['retrying', 'retries-failed'].includes(evt.detail.type) && ($_offline = true))
+	: evt.detail.type === 'retrying' ? ($_net = 'Can’t reach the server. Trying again…')
+	: evt.detail.type === 'finished' ? ($_net.startsWith('Can’t reach') && ($_net = ''))
+	: ['error', 'retries-failed'].includes(evt.detail.type) && (
+		Object.values($_pend).forEach(op => op && !$_acks[op] && ($_acks[op] = 'failed')),
+		$_net = evt.detail.type === 'error'
+			? 'The server couldn’t take that change, so nothing was saved. Reload the page and try again.'
+			: 'That change didn’t reach the server, so nothing was saved. Check your connection and try again.')`
+
+// The stream reconnects after any end, a server restart included. Its
+// own element starts it, so a new one replaces the old (requestCancellation).
+func streamExpr(board int64, tab string) string {
+	return "@get(" + js(boardURL(board, "/live?tab="+tab)) + ", {retry: 'always', retryMaxCount: Infinity, retryMaxWait: 10000})"
+}
+
+// The server pings every 20 s. A connection that went quiet without
+// closing (a laptop waking up, a new network) is noticed after 50 s and
+// replaced.
+func watchdog(board int64, tab string) string {
+	return "Date.now() - $_beat > 50000 && ($_offline = true, $_beat = Date.now(), " + streamExpr(board, tab) + ")"
+}
+
+func openExpr(board, card int64) string {
+	path := boardURL(board, "/cards/"+id(card))
+	if card == 0 {
+		path = boardURL(board, "")
+	}
+	return `($_card = ` + id(card) + `, location.pathname !== ` + js(path) + ` && history.pushState(null, '', ` + js(path) + `), ` + UI(boardURL(board, "/open"), "card: "+id(card)) + `)`
+}
+
+const popstate = `$_card = +(location.pathname.match(/\/cards\/(\d+)/)?.[1] ?? 0), @post(location.pathname.replace(/\/cards\/\d+$/, '') + '/open', {payload: {tab: $_tab, card: $_card}, requestCancellation: 'disabled'})`
+
+templ BoardPage(s BoardShell) {
+	@Layout(s.Page) {
+		<div
+			id="app"
+			data-signals={ signalsFor(s.Tab, s.Open) }
+			data-on:datastar-fetch={ fetchEvents }
+			data-on:popstate__window={ popstate }
+		>
+			@Topbar(s.Page, crumbs(s.Board)) {
+				@templ.Raw(string(s.Presence))
+			}
+			<style id="pending-style" data-text={ PendingStyle }></style>
+			<p id="pending-status" class="sr-only" role="status" data-text="Object.values($_pend).some(op => op && !$_acks[op]) ? 'Saving…' : ''"></p>
+			<div id="live" hidden data-init={ "$_beat = Date.now(); " + streamExpr(s.Board.ID, s.Tab) } data-on-interval__duration.10s={ watchdog(s.Board.ID, s.Tab) } data-effect="$_ping, $_beat = Date.now()"></div>
+			<p id="board-help" class="sr-only">Press Enter to open a card. To move it, hold Alt and press the arrow keys; releasing Alt sends the move, Escape cancels it.</p>
+			<main id="main" class="board-scroll">
+				@templ.Raw(string(s.Lanes))
+				<section class="add-lane" aria-label="Add a list">
+					<form class="add-list" data-on:submit__prevent={ "$_in.list?.trim() && (" + ActKey(boardURL(s.Board.ID, "/lists"), "nl", "name: $_in.list") + ")" }>
+						<input
+							data-bind="_in.list"
+							placeholder="Add a list…"
+							maxlength="100"
+							aria-label="Name of the new list"
+							data-attr:readonly={ Pending("nl") }
+							data-class:pending={ Pending("nl") }
+						/>
+						<button type="submit" class="btn" data-attr:aria-busy={ Pending("nl") }>Add list</button>
+					</form>
+				</section>
+			</main>
+			@templ.Raw(string(s.Detail))
+			<div id="status" class="sr-only" role="status"></div>
+			<p class="net-problem" role="alert" style="display: none" data-show="$_net" data-text="$_net" data-on:click="$_net = ''"></p>
+			<p class="offline" role="status" style="display: none" data-show="$_offline">Connection lost. Reconnecting… What you see may be out of date.</p>
+			<sb-toast id="toasts" placement="bottom-end" max="4" duration="7000" label="Messages" toasts="[]"></sb-toast>
+		</div>
+	}
+}
+
+templ crumbs(b *app.Board) {
+	<nav class="crumbs" aria-label="Boards">
+		<span class="crumb-project">{ b.ProjectName }</span>
+		<span aria-hidden="true" class="sep">/</span>
+		<ul class="board-switch">
+			for _, s := range b.Siblings {
+				<li>
+					<a
+						href={ templ.SafeURL(boardURL(s.ID, "")) }
+						if s.ID == b.ID {
+							aria-current="page"
+						}
+						style={ "view-transition-name: board-" + id(s.ID) }
+					>{ s.Name }</a>
+				</li>
+			}
+		</ul>
+	</nav>
+}
+
+templ Presence(users []app.User) {
+	<div id="presence" class="presence" aria-label={ plural(len(users), "person", "people") + " on this board" } role="group">
+		for _, u := range users {
+			@Avatar(u, "sm present")
+		}
+	</div>
+}
+
+// LanesMarker stands for the lanes in BoardWrap's output, where the
+// renderer splits it.
+const LanesMarker = "<!--lanes-->"
+
+// Board is the board element. Frames patch the lanes inside it (LanesWrap),
+// never the element itself: a frame then carries no custom element to
+// construct, and the board's handlers stay as they are.
+templ Board(b *app.Board, lanes []byte) {
+	<sb-kanban-board
+		id="board"
+		class="board"
+		aria-label="Lists"
+		data-kanban-landing
+		data-effect={ LandingRelease }
+		data-on:sb-kanban-move={ moveExpr(b.ID) }
+		data-on:sb-kanban-lane-move={ laneMoveExpr(b.ID) }
+		data-on:click={ openOnClick(b.ID) }
+		data-on:keydown={ openOnEnter(b.ID) }
+	>
+		@templ.Raw(string(lanes))
+	</sb-kanban-board>
+}
+
+// LanesWrap is the element the frames patch, around the lanes.
+templ LanesWrap() {
+	<div id="lanes" class="lanes">
+		@templ.Raw(LanesMarker)
+	</div>
+}
+
+// LaneShell stands in for a lane the page already has: the morph skips an
+// element when both copies carry data-ignore-morph.
+func LaneShell(list int64) []byte {
+	return []byte(`<section id="list-` + id(list) + `" data-ignore-morph></section>`)
+}
+
+// openCard opens the card whose id the JS expression idExpr gives.
+func openCard(board int64, idExpr string) string {
+	base := boardURL(board, "")
+	return `($_card = ` + idExpr + `, history.pushState(null, '', ` + js(base+"/cards/") + ` + $_card), @post(` + js(base+"/open") + `, {payload: {tab: $_tab, card: $_card}, requestCancellation: 'disabled'}))`
+}
+
+// A plain click on a card's title opens it here; a click with a modifier
+// key opens the link as links do.
+func openOnClick(board int64) string {
+	return `evt.target.closest('a.card-title') && !(evt.metaKey || evt.ctrlKey || evt.shiftKey || evt.altKey || evt.button) && (evt.preventDefault(), ` +
+		openCard(board, `+evt.target.closest('[data-kanban-card]').dataset.kanbanCard`) + `)`
+}
+
+func openOnEnter(board int64) string {
+	return `evt.key === 'Enter' && !evt.altKey && evt.target.matches('[data-kanban-card]') && (evt.preventDefault(), ` + openCard(board, `+evt.target.dataset.kanbanCard`) + `)`
+}
+
+// PendingStyle is the CSS for the cards and lanes whose move waits for the
+// server, or was refused, computed from the signals. It lives outside the patched
+// regions, so no frame can take a pending look away early. Outlines, not
+// shadows: forced colours keep them (and show a transparent one).
+const PendingStyle = `Object.entries($_pend).reduce((css, [k, op]) => {
+	const sel = k[0] === 'c' ? '#card-' + k.slice(1) : k[0] === 'm' ? '#list-' + k.slice(1) : ''
+	if (!sel || !op) return css
+	if (!$_acks[op]) return css + sel + '{opacity:.55;cursor:progress;outline:2px dashed transparent;outline-offset:-2px}' + (k[0] === 'c' ? sel + '::before{content:"";position:absolute;top:.5rem;right:.5rem;width:.8rem;height:.8rem;border:2px solid var(--accent);border-right-color:transparent;border-radius:50%;animation:spin .7s linear infinite}' : '')
+	return $_acks[op] !== 'ok' ? css + sel + '{outline:2px solid var(--danger);outline-offset:1px;animation:nudge .3s}' : css
+}, '')`
+
+// LandingRelease ends the landing marker of a move the server refused: the
+// card or lane stays where it was, so it never arrives at the marker.
+const LandingRelease = `Object.entries($_pend).forEach(([k, op]) => op && $_acks[op] && $_acks[op] !== 'ok' && (k[0] === 'c' ? el.releaseLanding?.({cardId: k.slice(1)}) : k[0] === 'm' && el.releaseLanding?.({col: +k.slice(1)})))`
+
+// laneMoveExpr posts a lane move (a drag, Alt and the arrows on the grip,
+// or a step button), with the lane's move version the page shows.
+func laneMoveExpr(board int64) string {
+	key := `'m' + evt.detail.col`
+	url := js(boardURL(board, "/lists/")) + ` + evt.detail.col + '/move'`
+	return Act(url, key, `before: evt.detail.before, seen: +(document.getElementById('list-' + evt.detail.col)?.dataset.seen ?? -1)`)
+}
+
+func moveExpr(board int64) string {
+	key := `'c' + evt.detail.cardId`
+	url := js(boardURL(board, "/cards/")) + ` + evt.detail.cardId + '/move'`
+	return Act(url, key, `col: evt.detail.col, before: evt.detail.before, seen: +(document.getElementById('card-' + evt.detail.cardId)?.dataset.seen ?? -1)`)
+}
+
+// Lane is one list. Its grip and its menu's step buttons move it: the board
+// turns them into sb-kanban-lane-move, like a drag. It marks itself
+// data-ignore-morph and keeps the mark through morphs: a frame skips it
+// unless it sends the lane in full (see LaneShell).
+templ Lane(b *app.Board, i int, l app.List, card func(app.Card) string) {
+	<section
+		id={ "list-" + id(l.ID) }
+		class="lane"
+		data-kanban-lane
+		data-col={ id(l.ID) }
+		data-seen={ id(l.MoveVersion) }
+		tabindex="-1"
+		aria-labelledby={ "list-" + id(l.ID) + "-title" }
+		data-attr:data-ignore-morph="'true'"
+		data-preserve-attr="data-ignore-morph"
+	>
+		<header class="lane-head">
+			<button type="button" class="lane-grip" data-kanban-lane-grip aria-label={ "Move the list " + l.Name + ": drag it, or hold Alt and press the arrow keys" } title="Drag to move the list"></button>
+			@inlineTitle("l"+id(l.ID), "list-"+id(l.ID)+"-title", "lane-name", l.Name, l.Name+", list: press Enter to rename", "List name", boardURL(b.ID, "/lists/"+id(l.ID)+"/rename"), "name", 100)
+			<span class="lane-count" aria-label={ plural(len(l.Cards), "card", "cards") }>{ id(int64(len(l.Cards))) }</span>
+			<button type="button" class="icon-btn" popovertarget={ "list-" + id(l.ID) + "-menu" } aria-label={ "Actions for the list " + l.Name }>
+				<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><circle cx="3" cy="8" r="1.5" fill="currentColor"></circle><circle cx="8" cy="8" r="1.5" fill="currentColor"></circle><circle cx="13" cy="8" r="1.5" fill="currentColor"></circle></svg>
+			</button>
+			<div popover id={ "list-" + id(l.ID) + "-menu" } class="menu" aria-label={ "Actions for " + l.Name }>
+				<button type="button" data-kanban-lane-step="-1" disabled?={ i == 0 } data-on:click="el.closest('[popover]').hidePopover()">Move left</button>
+				<button type="button" data-kanban-lane-step="1" disabled?={ i == len(b.Lists)-1 } data-on:click="el.closest('[popover]').hidePopover()">Move right</button>
+				<button
+					type="button"
+					class="danger"
+					data-on:click={ "el.closest('[popover]').hidePopover(); confirm(" + js("Archive the list “"+l.Name+"” and its cards?") + ") && (" + ActKey(boardURL(b.ID, "/lists/"+id(l.ID)+"/archive"), "a"+id(l.ID), "") + ")" }
+				>Archive list</button>
+			</div>
+		</header>
+		<div class="lane-cards" data-kanban-lane-cards>
+			for _, c := range l.Cards {
+				@templ.Raw(card(c))
+			}
+		</div>
+		<form class="add-card" data-on:submit__prevent={ "$_in.l" + id(l.ID) + "?.trim() && (" + ActKey(boardURL(b.ID, "/cards"), "n"+id(l.ID), "list: "+id(l.ID)+", title: $_in.l"+id(l.ID)) + ")" }>
+			<input
+				data-bind={ "_in.l" + id(l.ID) }
+				data-ignore-morph
+				placeholder="Add a card…"
+				maxlength="200"
+				aria-label={ "Title of a new card in " + l.Name }
+				data-attr:readonly={ Pending("n" + id(l.ID)) }
+				data-class:pending={ Pending("n" + id(l.ID)) }
+			/>
+		</form>
+	</section>
+}
+
+// inlineTitle is a title renamed in place with sb-inline-edit. The edit
+// mode is the page's own (one title at a time, $_edit); the new name shows
+// only once the server's frame brings it.
+templ inlineTitle(key, triggerID, class, value, label, inputLabel, url, field string, max int) {
+	<sb-inline-edit
+		class="inline-title"
+		data-context-id={ key }
+		data-on:sb-inline-edit-request={ "$_pend." + key + " = ''; $_val = el.querySelector('[data-inline-edit-value]').textContent; $_edit = " + js(key) }
+		data-on:sb-inline-edit-commit={ "$_val = evt.detail.value; " + ActKey(url, key, field+": evt.detail.value") }
+		data-on:sb-inline-edit-cancel={ "$_edit === " + js(key) + " && ($_edit = '')" }
+		data-effect={ Done(key) + " && $_edit === " + js(key) + " && ($_edit = '')" }
+	>
+		<button id={ triggerID } type="button" class={ class } data-inline-edit-trigger data-show={ "$_edit !== " + js(key) } aria-label={ label }><span data-inline-edit-value>{ value }</span></button>
+		<input
+			class={ class + "-input" }
+			data-inline-edit-input
+			data-ignore-morph
+			style="display: none"
+			data-show={ "$_edit === " + js(key) }
+			data-bind="_val"
+			maxlength={ id(int64(max)) }
+			aria-label={ inputLabel }
+			data-attr:readonly={ Pending(key) }
+			data-class:pending={ Pending(key) }
+			data-attr:aria-invalid={ Refused(key) }
+			data-effect={ "$_edit === " + js(key) + " && requestAnimationFrame(() => document.activeElement !== el && (el.focus(), el.select()))" }
+		/>
+	</sb-inline-edit>
+}
+
+// Card is one card on the board. It is cached by its content, and carries
+// no expressions: opening it is delegated to the board, and its pending
+// look comes from the page's pending style (see PendingStyle). On touch
+// screens the card pans the board and its grip drags it: touch-action
+// applies to the element hit, so the grip can't be a pseudo-element.
+templ Card(board int64, c app.Card, today time.Time) {
+	<article id={ "card-" + id(c.ID) } class="card" data-kanban-card={ id(c.ID) } data-seen={ id(c.MoveVersion) } tabindex="0" aria-labelledby={ "card-" + id(c.ID) + "-t" } aria-describedby="board-help">
+		<i class="card-grip" aria-hidden="true"></i>
+		if len(c.Labels) > 0 {
+			<ul class="card-labels" aria-label="Labels">
+				for _, l := range c.Labels {
+					<li class={ "label", "l-" + l.Color }>{ l.Name }</li>
+				}
+			</ul>
+		}
+		<a id={ "card-" + id(c.ID) + "-t" } class="card-title" href={ templ.SafeURL(boardURL(board, "/cards/"+id(c.ID))) } data-kanban-card-main>{ c.Title }</a>
+		if c.DueOn != "" || c.HasDesc || c.Comments > 0 {
+			<div class="card-meta">
+				if c.DueOn != "" {
+					{{ d := DueOf(c.DueOn, c.DueDone, today) }}
+					<span class={ "badge", "due", d.Class } title={ d.Full }><span class="sr-only">Due </span>{ d.Text }</span>
+				}
+				if c.HasDesc {
+					<span class="badge b-desc" title="Has a description"><span class="sr-only">Has a description</span></span>
+				}
+				if c.Comments > 0 {
+					<span class="badge b-comments" title={ plural(c.Comments, "comment", "comments") }>{ id(int64(c.Comments)) }<span class="sr-only">{ " comments" }</span></span>
+				}
+			</div>
+		}
+	</article>
+}
+
+// Status is the tab's live region and its toasts.
+templ Status(text string) {
+	<div id="status" class="sr-only" role="status">{ text }</div>
+}
+
+templ Toasts(board int64, json string) {
+	<sb-toast
+		id="toasts"
+		placement="bottom-end"
+		max="4"
+		duration="7000"
+		label="Messages"
+		toasts={ json }
+		data-on:sb-dismiss={ UI(boardURL(board, "/toasts/dismiss"), "id: evt.detail.id") }
+	></sb-toast>
+}

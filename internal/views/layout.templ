@@ -1,0 +1,143 @@
+package views
+
+import "kanban/internal/app"
+
+// Page is what every page's shell needs.
+type Page struct {
+	Title   string
+	Assets  Assets
+	User    *app.User
+	Modules []string // component modules this page loads
+	Class   string
+}
+
+templ Layout(p Page) {
+	<!DOCTYPE html>
+	<html lang="en" data-sb-style="smooth">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<meta name="color-scheme" content="light dark"/>
+			<title>{ p.Title } · Kanban</title>
+			<link rel="icon" href={ p.Assets.URL("icon.svg") } type="image/svg+xml"/>
+			<link rel="stylesheet" href={ p.Assets.URL("app.css") }/>
+			@templ.Raw(`<script type="importmap">` + ImportMap(p.Assets.Prefix) + `</script>`)
+			<script type="module" src={ p.Assets.URL("vendor/datastar-rocket.js") }></script>
+			for _, m := range p.Modules {
+				<script type="module" src={ p.Assets.URL(m) }></script>
+			}
+			if p.User != nil {
+				@templ.Raw(`<style>[data-author="` + id(p.User.ID) + `"] .own-only{display:inline-flex}[data-user="` + id(p.User.ID) + `"]{box-shadow:0 0 0 2px var(--bg-top),0 0 0 4px var(--accent)}</style>`)
+			}
+			@templ.Raw(`<script type="speculationrules">` + SpeculationRules + `</script>`)
+		</head>
+		<body class={ p.Class }>
+			<a class="skip" href="#main">Skip to the board</a>
+			{ children... }
+		</body>
+	</html>
+}
+
+templ Avatar(u app.User, size string) {
+	<span class={ "avatar", size } style={ "--c:" + u.Color } title={ u.Name } data-user={ id(u.ID) } aria-hidden="true">{ initials(u.Name) }</span>
+}
+
+templ Topbar(p Page, crumbs templ.Component) {
+	<header class="topbar">
+		<a class="brand" href="/" aria-label="All boards">
+			<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="2" y="3" width="6" height="18" rx="1.5" fill="currentColor"></rect><rect x="9" y="3" width="6" height="12" rx="1.5" fill="currentColor" opacity=".75"></rect><rect x="16" y="3" width="6" height="8" rx="1.5" fill="currentColor" opacity=".5"></rect></svg>
+			<span>Kanban</span>
+		</a>
+		if crumbs != nil {
+			@crumbs
+		}
+		<div class="topbar-end">
+			{ children... }
+			if p.User != nil {
+				<form method="post" action="/logout" class="who">
+					<span class="who-name">{ p.User.Name }</span>
+					<button type="submit" class="btn ghost sm">Log out</button>
+				</form>
+			}
+		</div>
+	</header>
+}
+
+templ Login(p Page, email, problem, csrf string) {
+	@Layout(p) {
+		<main id="main" class="login">
+			<div class="login-card">
+				<div class="login-brand">
+					<svg viewBox="0 0 24 24" width="32" height="32" aria-hidden="true"><rect x="2" y="3" width="6" height="18" rx="1.5" fill="currentColor"></rect><rect x="9" y="3" width="6" height="12" rx="1.5" fill="currentColor" opacity=".75"></rect><rect x="16" y="3" width="6" height="8" rx="1.5" fill="currentColor" opacity=".5"></rect></svg>
+					<h1>Kanban</h1>
+				</div>
+				<p class="muted">A collaborative board, rendered on the server.</p>
+				<form method="post" class="stack">
+					<input type="hidden" name="csrf" value={ csrf }/>
+					<label>
+						<span>Email</span>
+						<input type="email" name="email" value={ email } autocomplete="username" required autofocus/>
+					</label>
+					<label>
+						<span>Password</span>
+						<input type="password" name="password" autocomplete="current-password" required/>
+					</label>
+					if problem != "" {
+						<p class="problem" role="alert">{ problem }</p>
+					}
+					<button type="submit" class="btn primary">Log in</button>
+				</form>
+				<details class="demo">
+					<summary>Demo accounts</summary>
+					<p>
+						for i, u := range app.SeedUsers {
+							if i > 0 {
+								{ ", " }
+							}
+							<code>{ u.Email }</code>
+						}
+						{ " with the password " }
+						<code>{ app.DemoPassword }</code>. Open two browsers as two people to see each other's changes.
+					</p>
+				</details>
+			</div>
+		</main>
+	}
+}
+
+templ Home(p Page, projects []app.Project) {
+	@Layout(p) {
+		@Topbar(p, nil)
+		<main id="main" class="home">
+			<h1>Your boards</h1>
+			if len(projects) == 0 {
+				<p class="muted">You aren't on any board yet.</p>
+			}
+			for _, pr := range projects {
+				<section class="project">
+					<h2>{ pr.Name }</h2>
+					<ul class="board-tiles">
+						for _, b := range pr.Boards {
+							<li>
+								<a class="board-tile" href={ templ.SafeURL(boardURL(b.ID, "")) } style={ "view-transition-name: board-" + id(b.ID) }>
+									<span>{ b.Name }</span>
+								</a>
+							</li>
+						}
+					</ul>
+				</section>
+			}
+		</main>
+	}
+}
+
+templ NotFound(p Page, what string) {
+	@Layout(p) {
+		@Topbar(p, nil)
+		<main id="main" class="home">
+			<h1>Not found</h1>
+			<p class="muted">{ what }</p>
+			<p><a href="/">Back to your boards</a></p>
+		</main>
+	}
+}
