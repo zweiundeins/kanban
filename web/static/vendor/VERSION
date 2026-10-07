@@ -1,0 +1,11 @@
+Starbase components, one file each (Starbase's cmd/dist), and its patched Datastar build
+(Datastar v1.0.4 with patches/rocket), from github.com/zweiundeins/starbase at commit c6a6589a4df475b8657f42586ce202aad2a1b023.
+Update: task starbase REF=<ref>.
+The PD rockets components (kanban-board, inline-edit) are Beer-Ware (their *.LICENSE-pd-rockets.txt); the rest is MIT (starbase/LICENSE).
+Datastar: MIT, github.com/starfederation/datastar.
+
+Files and their integrity, as cmd/dist printed them:
+inline-edit.js	2970 bytes	sha384-v/bRX30mVUEYve9XNZmS99OGcmwS3NuDyOVYosdW6JTkVpns+VwvkLt3e7Lor/mX
+kanban-board.js	33125 bytes	sha384-Dz6AQCwmdwZ4m5jgO+YkhZqNa7lRSyCc5HnSOIrM/BTqO/MlGPjuxPnWqbO+lopx
+modal.js	3671 bytes	sha384-UGygrJu0y/ZkqWX6xljtENUH5CKlnwaN0oeXGK+fJZCSwKBCSyOtV7D/cLy3j6Nh
+toast.js	8589 bytes	sha384-Y32WomGobqZNuKDfKwWOP9eJ9GSOl0ZQgqJ54aYrHYLXlvZ6iU1FNf3bxDgM+cW4
