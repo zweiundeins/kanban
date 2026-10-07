@@ -1,0 +1,72 @@
+version: '3'
+
+vars:
+  BIN: kanban
+  DB: data/kanban.db
+
+tasks:
+  generate:
+    desc: Compile the templ views
+    cmds:
+      - go tool templ generate
+
+  build:
+    desc: Build the static binary (everything embedded)
+    deps: [generate]
+    env:
+      CGO_ENABLED: '0'
+    cmds:
+      - go build -trimpath -ldflags "-s -w" -o {{.BIN}} ./cmd/kanban
+
+  seed:
+    desc: Create and seed the local database (if it doesn't exist)
+    status:
+      - test -f {{.DB}}
+    cmds:
+      - go run ./cmd/kanban seed -db {{.DB}}
+
+  reset:
+    desc: Delete the local database and seed it again
+    cmds:
+      - go run ./cmd/kanban reset -db {{.DB}}
+
+  dev:
+    desc: Run with live reload (air rebuilds on every change)
+    deps: [seed]
+    cmds:
+      - go tool air
+
+  run:
+    desc: Build and run the binary
+    deps: [build, seed]
+    cmds:
+      - ./{{.BIN}} serve -db {{.DB}}
+
+  test:
+    desc: Vet and run the Go tests with the race detector
+    deps: [generate]
+    cmds:
+      - go vet ./...
+      - test -z "$(gofmt -l cmd internal web)"
+      - go test -race ./...
+
+  e2e:
+    desc: End-to-end tests in Chromium against the real binary (CHROME=/path/to/chromium)
+    deps: [build]
+    dir: e2e
+    cmds:
+      - sh -c 'pnpm install --frozen-lockfile --silent' # pnpm's launcher needs a real sh
+      - KANBAN_BIN=../{{.BIN}} node --test --test-concurrency=1 --test-timeout=120000 *.test.mjs
+
+  load:
+    desc: Simulated users moving cards on one board (see cmd/loadtest)
+    cmds:
+      - go run ./cmd/loadtest {{.CLI_ARGS}}
+
+  starbase:
+    desc: Copy the Starbase components and Datastar build again from a Starbase checkout (STARBASE=../starbase REF=origin/main)
+    vars:
+      STARBASE: '{{.STARBASE | default "../starbase"}}'
+      REF: '{{.REF | default "origin/main"}}'
+    cmds:
+      - ./scripts/vendor-starbase.sh {{.STARBASE}} {{.REF}}
