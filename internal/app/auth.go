@@ -75,7 +75,7 @@ func tokenHash(token string) []byte {
 // the cookie.
 func (a *App) Login(ctx context.Context, email, pw string) (token string, user User, err error) {
 	var hash string
-	err = a.DB.Read.QueryRowContext(ctx, `SELECT id, email, name, color, password_hash FROM users WHERE email = ?`, strings.TrimSpace(email)).
+	err = a.DB.QueryRow(ctx, `SELECT id, email, name, color, password_hash FROM users WHERE email = ?`, strings.TrimSpace(email)).
 		Scan(&user.ID, &user.Email, &user.Name, &user.Color, &hash)
 	if errors.Is(err, sql.ErrNoRows) {
 		CheckPassword(dummyHash, pw)
@@ -109,7 +109,7 @@ func (a *App) Session(ctx context.Context, token string) (User, error) {
 	if token == "" {
 		return u, ErrNotFound
 	}
-	err := a.DB.Read.QueryRowContext(ctx, `
+	err := a.DB.QueryRow(ctx, `
 		SELECT u.id, u.email, u.name, u.color FROM sessions s JOIN users u ON u.id = s.user_id
 		WHERE s.token_hash = ? AND s.expires_at > ?`, tokenHash(token), time.Now().Unix()).
 		Scan(&u.ID, &u.Email, &u.Name, &u.Color)

@@ -21,24 +21,35 @@ var ErrClosed = errors.New("db: writer closed")
 // command waits for it.
 type Command func(*Tx) error
 
-// Tx is what a Command gets: the batch's transaction, and the boards the
-// command changed.
+// Tx is what a Command gets: the batch's transaction (on the writer's
+// connection), and the boards the command changed.
 type Tx struct {
-	tx     *sql.Tx
+	w      *Writer
 	ctx    context.Context
 	boards map[int64]int64 // board id -> its version after this command
 }
 
+// Exec runs a statement, prepared once per connection (see Writer.stmt).
 func (t *Tx) Exec(query string, args ...any) (sql.Result, error) {
-	return t.tx.ExecContext(t.ctx, query, args...)
+	if s := t.w.stmt(t.ctx, query); s != nil {
+		return s.ExecContext(t.ctx, args...)
+	}
+	return t.w.conn.ExecContext(t.ctx, query, args...)
 }
 
+// Query is not cached: a prepared statement can't run again while its rows
+// are open.
 func (t *Tx) Query(query string, args ...any) (*sql.Rows, error) {
-	return t.tx.QueryContext(t.ctx, query, args...)
+	return t.w.conn.QueryContext(t.ctx, query, args...)
 }
 
+// QueryRow runs a cached statement; Scan the row before running the same
+// query again.
 func (t *Tx) QueryRow(query string, args ...any) *sql.Row {
-	return t.tx.QueryRowContext(t.ctx, query, args...)
+	if s := t.w.stmt(t.ctx, query); s != nil {
+		return s.QueryRowContext(t.ctx, args...)
+	}
+	return t.w.conn.QueryRowContext(t.ctx, query, args...)
 }
 
 // Touch records that the command changed a board: it bumps the board's
@@ -100,8 +111,12 @@ type Stats struct {
 // runs, and the next batch takes all of them (up to MaxBatch) into one
 // transaction: under load the batch grows, and one commit (one fsync)
 // covers many commands. Nobody waits for a batch to fill.
+//
+// The driver would parse and plan every statement on every call; the
+// writer prepares each one once, on its connection, and keeps it.
 type Writer struct {
-	db       *sql.DB
+	conn     *sql.Conn            // the write connection, held for the writer's life
+	stmts    map[string]*sql.Stmt // prepared on conn, by their SQL (the writer goroutine only)
 	queue    chan *request
 	maxBatch int
 	onCommit func([]int64)
@@ -114,16 +129,53 @@ type Writer struct {
 	sizes                                                      [6]atomic.Int64
 }
 
-func newWriter(db *sql.DB, maxBatch int, onCommit func([]int64)) *Writer {
+// maxStmts bounds the statement cache. The queries are constants or built
+// from a few table names, so it is never reached; past it, statements are
+// prepared for each call again.
+const maxStmts = 512
+
+func newWriter(db *sql.DB, maxBatch int, onCommit func([]int64)) (*Writer, error) {
+	conn, err := db.Conn(context.Background())
+	if err != nil {
+		return nil, err
+	}
 	w := &Writer{
-		db:       db,
+		conn:     conn,
+		stmts:    map[string]*sql.Stmt{},
 		queue:    make(chan *request, 4*maxBatch),
 		maxBatch: maxBatch,
 		onCommit: onCommit,
 		done:     make(chan struct{}),
 	}
 	go w.run()
-	return w
+	return w, nil
+}
+
+// stmt returns query prepared on the write connection, or nil when it
+// can't be cached (the caller then runs it unprepared, which reports any
+// error in the SQL).
+func (w *Writer) stmt(ctx context.Context, query string) *sql.Stmt {
+	if s := w.stmts[query]; s != nil {
+		return s
+	}
+	if len(w.stmts) >= maxStmts {
+		return nil
+	}
+	s, err := w.conn.PrepareContext(ctx, query)
+	if err != nil {
+		return nil
+	}
+	w.stmts[query] = s
+	return s
+}
+
+func (w *Writer) exec(ctx context.Context, query string) error {
+	if s := w.stmt(ctx, query); s != nil {
+		_, err := s.ExecContext(ctx)
+		return err
+	}
+	_, err := w.conn.ExecContext(ctx, query)
+	return err
 }
 
 // SetOnCommit replaces the commit hook (wiring order: the hub needs the
@@ -186,6 +238,12 @@ func (w *Writer) Stats() Stats {
 
 func (w *Writer) run() {
 	defer close(w.done)
+	defer func() { // give the connection back, so the database can close
+		for _, s := range w.stmts {
+			s.Close()
+		}
+		w.conn.Close()
+	}()
 	batch := make([]*request, 0, w.maxBatch)
 	for req := range w.queue {
 		batch = append(batch[:0], req)
@@ -201,7 +259,7 @@ func (w *Writer) run() {
 				break fill
 			}
 		}
-		w.exec(batch)
+		w.batch(batch)
 		clear(batch) // drop references to finished commands
 	}
 }
@@ -222,7 +280,7 @@ func sizeBucket(n int) int {
 	return 5
 }
 
-func (w *Writer) exec(batch []*request) {
+func (w *Writer) batch(batch []*request) {
 	start := time.Now()
 	for _, r := range batch {
 		w.waitNanos.Add(int64(start.Sub(r.at)))
@@ -238,22 +296,23 @@ func (w *Writer) exec(batch []*request) {
 		clear(changed)
 	}
 
+	// The transaction is SQL on the writer's connection, so that BEGIN,
+	// the savepoints and COMMIT are prepared statements too.
 	ctx := context.Background()
-	tx, err := w.db.BeginTx(ctx, nil) // BEGIN IMMEDIATE (_txlock=immediate)
-	if err != nil {
+	if err := w.exec(ctx, "BEGIN IMMEDIATE"); err != nil {
 		fail(fmt.Errorf("db: begin: %w", err))
 	} else {
 		broken := false
 		for i, r := range batch {
-			if _, err := tx.ExecContext(ctx, "SAVEPOINT cmd"); err != nil {
+			if err := w.exec(ctx, "SAVEPOINT cmd"); err != nil {
 				fail(fmt.Errorf("db: savepoint: %w", err))
 				broken = true
 				break
 			}
-			t := &Tx{tx: tx, ctx: ctx, boards: map[int64]int64{}}
+			t := &Tx{w: w, ctx: ctx, boards: map[int64]int64{}}
 			if err := call(func() error { return r.cmd(t) }); err != nil {
 				errs[i] = err
-				if _, err := tx.ExecContext(ctx, "ROLLBACK TO cmd"); err != nil {
+				if err := w.exec(ctx, "ROLLBACK TO cmd"); err != nil {
 					fail(fmt.Errorf("db: rollback to savepoint: %w", err))
 					broken = true
 					break
@@ -263,16 +322,16 @@ func (w *Writer) exec(batch []*request) {
 					changed[b] = struct{}{}
 				}
 			}
-			if _, err := tx.ExecContext(ctx, "RELEASE cmd"); err != nil {
+			if err := w.exec(ctx, "RELEASE cmd"); err != nil {
 				fail(fmt.Errorf("db: release savepoint: %w", err))
 				broken = true
 				break
 			}
 		}
 		if broken {
-			_ = tx.Rollback()
-		} else if err := tx.Commit(); err != nil {
-			_ = tx.Rollback()
+			_ = w.exec(ctx, "ROLLBACK")
+		} else if err := w.exec(ctx, "COMMIT"); err != nil {
+			_ = w.exec(ctx, "ROLLBACK") // a failed COMMIT can leave the transaction open
 			fail(fmt.Errorf("db: commit: %w", err))
 		}
 	}

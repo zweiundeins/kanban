@@ -75,20 +75,22 @@ Ours loads Datastar and one file per Starbase component (Starbase's `cmd/dist`),
 
 ## Load: many people on one board
 
-`cmd/loadtest` (ours only) opens real streams with brotli, as a browser does, and moves random cards on the 200-card board. It measures what a person waits for: from sending a move to its outcome arriving on their own stream, after the frame that shows it. Moves go out on schedule, whether or not the last one was answered. `scripts/load.sh` runs each configuration three times for 30 s on a fresh server; the server runs on the six performance cores (CPUs 0 to 11) and the load tool on the eight efficiency cores, so they don't take each other's CPU. The host runs other services, so expect some noise. `python3 scripts/summarize-load.py results/2026-10`, medians of 3 runs:
+`cmd/loadtest` (ours only) opens real streams with brotli, as a browser does, and moves random cards on the 200-card board. It measures what a person waits for: from sending a move to its outcome arriving on their own stream, after the frame that shows it. Moves go out on schedule, whether or not the last one was answered. `scripts/load.sh` runs each configuration three times for 30 s on a fresh server; the server runs on the six performance cores (CPUs 0 to 11) and the load tool on the eight efficiency cores, so they don't take each other's CPU. The host runs other services, so expect some noise. `python3 scripts/summarize-load.py results/2026-10`, medians of 3 runs on 2026-10-08, with the statement cache (see "The writer alone"):
 
 | | 50 tabs, a move each per second | 200 tabs, four moves each per second |
 |---|---|---|
-| moves per second | 48 | 788 |
-| refused as stale (two people, one card) | 17 of 1,499 | 4,422 of 23,919 |
-| send to 204, p50 / p95 | 6.8 / 12.4 ms | 5.5 / 17.0 ms |
-| send to outcome on the stream, p50 / p95 | 48 / 75 ms | 56 / 98 ms |
-| frames per tab per second | 18.3 | 18.5 |
-| bytes per frame on the wire (brotli quality 4) | 510 | 992 |
-| server CPU | 1.7 cores | 5.1 cores |
-| server memory, peak RSS | 266 MB | 1,137 MB |
-| writer: moves per transaction, largest | 1.0, 3 | 2.6, 30 |
-| load tool CPU | 1.0 cores | 3.8 cores |
+| moves per second | 48 | 790 |
+| refused as stale (two people, one card) | 15 of 1,508 | 4,425 of 23,967 |
+| send to 204, p50 / p95 | 5.8 / 13.6 ms | 4.4 / 12.2 ms |
+| send to outcome on the stream, p50 / p95 | 47 / 77 ms | 56 / 99 ms |
+| frames per tab per second | 18.3 | 18.2 |
+| bytes per frame on the wire (brotli quality 4) | 532 | 999 |
+| server CPU | 1.6 cores | 4.9 cores |
+| server memory, peak RSS | 258 MB | 1,163 MB |
+| writer: moves per transaction, largest | 1.0, 5 | 2.3, 38 |
+| load tool CPU | 1.0 cores | 3.9 cores |
+
+Before the cache, in runs alternating with these (`results/2026-10/stmt-cache/before/`), a move's 204 took 5.4 / 16.7 ms (p50 / p95) at 200 tabs and the server used 5.1 cores; everything else was the same within the noise. The first runs, from 2026-10-07, are in `results/2026-10/superseded/before-stmt-cache/`.
 
 At 50 tabs most moves are a transaction of their own and wait for their own fsync, about 5 ms on this disk; at 200 tabs, moves queue while a transaction commits and share the next one.
 
@@ -102,11 +104,15 @@ Memory follows the streams: a stream that has received frames keeps brotli's win
 
 | people moving at once | moves per second | moves per transaction | time per transaction |
 |---|---|---|---|
-| 1 | 240 to 300 | 1 | 3.4 to 4.2 ms |
-| 50 | about 5,300 | 25 | 4.7 ms |
-| 200 | about 10,000 | 105 | 10 to 11 ms |
+| 1 | 240 to 340 | 1 | 2.9 to 4.2 ms |
+| 50 | about 5,100 | 25 | 4.7 to 5.4 ms |
+| 200 | about 13,800 | 103 | 6.9 to 7.8 ms |
 
-Anders Murphy's [SQLite benchmark](https://andersmurphy.com/2025/12/02/100000-tps-over-a-billion-rows-the-unreasonable-effectiveness-of-sqlite.html), whose single-writer batching this design follows, reports 98,163 transactions a second with savepoints and `synchronous=FULL`. Ours is about ten times slower, for three reasons. A move runs about fifteen statements (the op id check, membership, two savepoints, the card, its list, the position, the update, the board version and the op record); his transfer runs two updates. The pure Go SQLite driver prepares each statement again on every call. And his machine was a MacBook, where SQLite's fsync doesn't wait for the drive to empty its cache unless `PRAGMA fullfsync` is on; his settings don't list it. Here a commit waits 3 to 5 ms for the disk, which is the ceiling for one person moving alone. For a board, 10,000 moves a second is far more than people make: 200 people each moving a card every 250 ms send 800.
+Four rounds each, alternating with the code before the statement cache, on the performance cores (`taskset -c 0-11`); raw output in `results/2026-10/stmt-cache/writer-bench.txt`.
+
+The pure Go SQLite driver prepares a statement again on every call: it parses and plans the SQL, runs it, and throws the plan away. With 200 people that was 41% of the writer's CPU, 36% in SQLite's SQL parser alone (`results/2026-10/stmt-cache/writer-profile-200.txt`). The writer now holds its connection as a `*sql.Conn` and prepares each statement once on it, `BEGIN`, the savepoints and `COMMIT` included; reads outside a read transaction (the session and membership checks of every action) use statements prepared once per pool connection. With 200 people the writer went from about 10,000 to about 13,800 moves a second; the time left is mostly SQLite's own work (`sqlite3_step`, 40%) and Go's garbage collector (11%). With 1 or 50 people nothing changed: there every transaction waits for its fsync.
+
+Anders Murphy's [SQLite benchmark](https://andersmurphy.com/2025/12/02/100000-tps-over-a-billion-rows-the-unreasonable-effectiveness-of-sqlite.html), whose single-writer batching this design follows, reports 98,163 transactions a second with savepoints and `synchronous=FULL`. Ours is about seven times slower, for two reasons. A move runs about fifteen statements (the op id check, membership, two savepoints, the card, its list, the position, the update, the board version and the op record); his transfer runs two updates. And his machine was a MacBook, where SQLite's fsync doesn't wait for the drive to empty its cache unless `PRAGMA fullfsync` is on; his settings don't list it. Here a commit waits 3 to 5 ms for the disk, which is the ceiling for one person moving alone. For a board, 13,800 moves a second is far more than people make: 200 people each moving a card every 250 ms send 800.
 
 ## Footprint
 

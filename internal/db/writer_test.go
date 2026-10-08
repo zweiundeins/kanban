@@ -232,3 +232,59 @@ func TestCloseDrainsQueue(t *testing.T) {
 		t.Fatalf("version %d, accepted %d", n, ok.Load())
 	}
 }
+
+// TestStatementsPreparedOnce: running the same command again reuses its
+// prepared statements; a statement with an error fails its command only.
+func TestStatementsPreparedOnce(t *testing.T) {
+	d := open(t, Options{})
+	seedBoard(t, d)
+	rename := func(name string) error {
+		return d.W.Do(context.Background(), func(tx *Tx) error {
+			_, err := tx.Exec("UPDATE boards SET name = ? WHERE id = ?", name, 1)
+			return err
+		})
+	}
+	if err := rename("x"); err != nil {
+		t.Fatal(err)
+	}
+	var cached int
+	_ = d.W.Do(context.Background(), func(*Tx) error { cached = len(d.W.stmts); return nil })
+	for i := range 20 {
+		if err := rename(string(rune('a' + i))); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var after int
+	_ = d.W.Do(context.Background(), func(*Tx) error { after = len(d.W.stmts); return nil })
+	if after != cached {
+		t.Fatalf("%d statements cached after one run, %d after 21", cached, after)
+	}
+	err := d.W.Do(context.Background(), func(tx *Tx) error {
+		_, err := tx.Exec("UPDATE no_such_table SET x = 1")
+		return err
+	})
+	if err == nil {
+		t.Fatal("a statement on a missing table succeeded")
+	}
+	if err := rename("ok"); err != nil {
+		t.Fatalf("the writer broke after a bad statement: %v", err)
+	}
+	if n := count(t, d, "SELECT count(*) FROM boards WHERE name = 'ok'"); n != 1 {
+		t.Fatalf("rename after the bad statement: %d rows", n)
+	}
+}
+
+// TestReadStatements: reads outside a transaction share prepared statements.
+func TestReadStatements(t *testing.T) {
+	d := open(t, Options{})
+	seedBoard(t, d)
+	for range 50 {
+		var name string
+		if err := d.QueryRow(context.Background(), "SELECT name FROM boards WHERE id = ?", 2).Scan(&name); err != nil || name != "c" {
+			t.Fatalf("got %q, %v", name, err)
+		}
+	}
+	if len(d.stmts) != 1 {
+		t.Fatalf("%d read statements cached, want 1", len(d.stmts))
+	}
+}

@@ -124,7 +124,7 @@ type Project struct {
 // IsMember reports whether user may see and change board.
 func (a *App) IsMember(ctx context.Context, board, user int64) (bool, error) {
 	var one int
-	err := a.DB.Read.QueryRowContext(ctx, "SELECT 1 FROM board_members WHERE board_id = ? AND user_id = ?", board, user).Scan(&one)
+	err := a.DB.QueryRow(ctx, "SELECT 1 FROM board_members WHERE board_id = ? AND user_id = ?", board, user).Scan(&one)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
@@ -133,7 +133,7 @@ func (a *App) IsMember(ctx context.Context, board, user int64) (bool, error) {
 
 // Projects lists the projects and boards user is a member of.
 func (a *App) Projects(ctx context.Context, user int64) ([]Project, error) {
-	rows, err := a.DB.Read.QueryContext(ctx, `
+	rows, err := a.DB.Query(ctx, `
 		SELECT p.id, p.name, b.id, b.name FROM boards b
 		JOIN projects p ON p.id = b.project_id
 		JOIN board_members m ON m.board_id = b.id AND m.user_id = ?
@@ -388,7 +388,7 @@ func (a *App) LoadCard(ctx context.Context, board, id int64) (*CardDetail, error
 // UserByID reads one user.
 func (a *App) UserByID(ctx context.Context, id int64) (User, error) {
 	var u User
-	err := a.DB.Read.QueryRowContext(ctx, `SELECT id, email, name, color FROM users WHERE id = ?`, id).Scan(&u.ID, &u.Email, &u.Name, &u.Color)
+	err := a.DB.QueryRow(ctx, `SELECT id, email, name, color FROM users WHERE id = ?`, id).Scan(&u.ID, &u.Email, &u.Name, &u.Color)
 	if errors.Is(err, sql.ErrNoRows) {
 		return u, ErrNotFound
 	}

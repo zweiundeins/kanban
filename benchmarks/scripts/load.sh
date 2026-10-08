@@ -10,7 +10,7 @@ cd "$(dirname "$0")/../.."
 runs=${1:-3}
 server_cpus=${SERVER_CPUS:-0-11}
 tool_cpus=${TOOL_CPUS:-12-19}
-out=benchmarks/results/$(date -u +%Y-%m)
+out=${OUT:-benchmarks/results/$(date -u +%Y-%m)}
 mkdir -p "$out"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT

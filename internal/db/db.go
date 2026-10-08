@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync"
 
 	_ "modernc.org/sqlite"
 )
@@ -35,6 +36,49 @@ type DB struct {
 	Read *sql.DB
 	W    *Writer
 	wdb  *sql.DB
+
+	stmtMu sync.Mutex
+	stmts  map[string]*sql.Stmt // read statements, prepared once per pool connection
+}
+
+// QueryRow runs a read on the pool with a cached prepared statement. Not
+// for use inside ReadTx: preparing takes a connection of its own, and a
+// transaction holding one while the pool is exhausted would wait forever.
+func (d *DB) QueryRow(ctx context.Context, query string, args ...any) *sql.Row {
+	if s := d.readStmt(ctx, query); s != nil {
+		return s.QueryRowContext(ctx, args...)
+	}
+	return d.Read.QueryRowContext(ctx, query, args...)
+}
+
+// Query is QueryRow for many rows.
+func (d *DB) Query(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	if s := d.readStmt(ctx, query); s != nil {
+		return s.QueryContext(ctx, args...)
+	}
+	return d.Read.QueryContext(ctx, query, args...)
+}
+
+// readStmt prepares query on the pool once; database/sql then prepares it
+// on each connection the first time it runs there and keeps it.
+func (d *DB) readStmt(ctx context.Context, query string) *sql.Stmt {
+	d.stmtMu.Lock()
+	defer d.stmtMu.Unlock()
+	if s := d.stmts[query]; s != nil {
+		return s
+	}
+	if len(d.stmts) >= maxStmts {
+		return nil
+	}
+	s, err := d.Read.PrepareContext(ctx, query)
+	if err != nil {
+		return nil
+	}
+	if d.stmts == nil {
+		d.stmts = map[string]*sql.Stmt{}
+	}
+	d.stmts[query] = s
+	return s
 }
 
 func dsn(path string, pragmas []string, extra url.Values) string {
@@ -100,13 +144,23 @@ func Open(ctx context.Context, path string, opts Options) (*DB, error) {
 		wdb.Close()
 		return nil, err
 	}
-	d.W = newWriter(wdb, opts.MaxBatch, opts.OnCommit)
+	if d.W, err = newWriter(wdb, opts.MaxBatch, opts.OnCommit); err != nil {
+		d.Read.Close()
+		wdb.Close()
+		return nil, err
+	}
 	return d, nil
 }
 
 // Close drains the writer, then closes both pools.
 func (d *DB) Close() error {
 	d.W.Close()
+	d.stmtMu.Lock()
+	for _, s := range d.stmts {
+		s.Close()
+	}
+	d.stmts = nil
+	d.stmtMu.Unlock()
 	// Fold the WAL back into the database file, so a copy of the file alone is complete.
 	_, _ = d.wdb.Exec("PRAGMA wal_checkpoint(TRUNCATE)")
 	err := d.Read.Close()
