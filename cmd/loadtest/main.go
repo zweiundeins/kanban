@@ -1,5 +1,5 @@
 // Command loadtest puts simulated people on one board: each opens the page
-// and its stream (brotli, like a browser) and moves random cards. It
+// and its stream (compressed as a browser asks) and moves random cards. It
 // measures what a person waits for: from sending a move to its outcome
 // arriving on their own stream, after the frame that shows it. Moves go out
 // on schedule, whether or not the last one was answered, so a slow server
@@ -31,6 +31,8 @@ import (
 	"time"
 
 	"github.com/andybalholm/brotli"
+	"github.com/klauspost/compress/gzip"
+	"github.com/klauspost/compress/zstd"
 )
 
 var (
@@ -41,6 +43,7 @@ var (
 	interval = flag.Duration("interval", time.Second, "time between two moves of one tab (jittered)")
 	accounts = flag.String("accounts", "anna@example.com,ben@example.com,chiara@example.com,dev@example.com", "demo accounts")
 	out      = flag.String("out", "", "also write the results to this JSON file")
+	accept   = flag.String("accept-encoding", "gzip, deflate, br, zstd", "the streams' Accept-Encoding (Chrome's by default)")
 )
 
 // One connection pool for every tab, big enough that no request waits for
@@ -71,6 +74,7 @@ func (c countingReader) Read(p []byte) (int, error) {
 }
 
 type stats struct {
+	encoding            atomic.Value // the streams' Content-Encoding
 	mu                  sync.Mutex
 	confirmed           []time.Duration // send -> outcome on the stream
 	responded           []time.Duration // send -> 204
@@ -131,7 +135,7 @@ func (t *tab) open(ctx context.Context) error {
 	t.id = string(m[1]) + string(m[2])
 	t.parse(body, true)
 	req, _ := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/boards/%d/live?tab=%s", *base, *board, t.id), nil)
-	req.Header.Set("Accept-Encoding", "br")
+	req.Header.Set("Accept-Encoding", *accept)
 	req.Header.Set("Datastar-Request", "true")
 	res, err = t.c.Do(req)
 	if err != nil {
@@ -140,8 +144,43 @@ func (t *tab) open(ctx context.Context) error {
 	if res.StatusCode != 200 {
 		return fmt.Errorf("stream: %s", res.Status)
 	}
-	go t.read(res.Body)
+	enc := res.Header.Get("Content-Encoding")
+	t.st.encoding.Store(enc)
+	stream := io.Reader(countingReader{res.Body, &t.st.wire})
+	switch enc {
+	case "br":
+		stream = brotli.NewReader(stream)
+	case "zstd":
+		zr, err := zstd.NewReader(stream, zstd.WithDecoderConcurrency(1))
+		if err != nil {
+			return err
+		}
+		stream = zr
+	case "gzip":
+		// The gzip header arrives with the stream's first frame.
+		stream = &lazyGzip{r: stream}
+	case "":
+	default:
+		return fmt.Errorf("stream: unknown encoding %q", enc)
+	}
+	go t.read(stream, res.Body)
 	return nil
+}
+
+type lazyGzip struct {
+	r  io.Reader
+	gz *gzip.Reader
+}
+
+func (l *lazyGzip) Read(p []byte) (int, error) {
+	if l.gz == nil {
+		gz, err := gzip.NewReader(l.r)
+		if err != nil {
+			return 0, err
+		}
+		l.gz = gz
+	}
+	return l.gz.Read(p)
 }
 
 // parse merges what a page or a frame shows: a frame carries only the lanes
@@ -167,9 +206,9 @@ func (t *tab) parse(html []byte, full bool) {
 	}
 }
 
-func (t *tab) read(body io.ReadCloser) {
-	defer body.Close()
-	sc := bufio.NewScanner(brotli.NewReader(countingReader{body, &t.st.wire}))
+func (t *tab) read(body io.Reader, conn io.Closer) {
+	defer conn.Close()
+	sc := bufio.NewScanner(body)
 	sc.Buffer(make([]byte, 0, 1<<20), 16<<20)
 	var event string
 	var data bytes.Buffer
@@ -322,8 +361,9 @@ func main() {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	sent := len(st.responded) + st.failed
+	enc, _ := st.encoding.Load().(string)
 	r := map[string]any{
-		"tabs": *tabs, "interval_ms": interval.Milliseconds(), "duration_s": duration.Seconds(),
+		"tabs": *tabs, "interval_ms": interval.Milliseconds(), "duration_s": duration.Seconds(), "encoding": enc,
 		"moves": sent, "moves_per_s": float64(sent) / elapsed.Seconds(),
 		"confirmed": st.ok, "refused": st.refused, "failed": st.failed, "unanswered": unanswered,
 		"ms_to_204":            ms(st.responded),
