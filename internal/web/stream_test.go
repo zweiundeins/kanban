@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/klauspost/compress/zstd"
+	"github.com/zweiundeins/lith/edge"
 	lithlive "github.com/zweiundeins/lith/live"
 
 	"kanban/internal/app"
@@ -46,7 +47,7 @@ func testServer(t *testing.T, path string) (*httptest.Server, *app.App, func()) 
 		}
 	}
 	sub, _ := fs.Sub(webfiles.FS, "static")
-	static, err := NewStatic(sub)
+	static, err := edge.NewStatic(sub, staticPrefix)
 	if err != nil {
 		t.Fatal(err)
 	}

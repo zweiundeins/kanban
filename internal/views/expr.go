@@ -12,12 +12,13 @@ import (
 	"time"
 )
 
-// Assets are the static files' URL prefix (it changes with their content).
-type Assets struct {
-	Prefix string
-}
+// Assets gives a static file's URL, which changes with its content.
+type Assets func(file string) string
 
-func (a Assets) URL(file string) string { return a.Prefix + "/" + file }
+func (a Assets) URL(file string) string { return a(file) }
+
+// DatastarJS is the Datastar build every page loads.
+const DatastarJS = "vendor/datastar-rocket.js"
 
 // opID makes a new op id in the browser.
 const opID = `Date.now().toString(36) + Math.random().toString(36).slice(2, 7)`
@@ -134,9 +135,10 @@ func initials(name string) string {
 	return out
 }
 
-// ImportMap is the inline import map's text (the CSP allows it by hash).
-func ImportMap(prefix string) string {
-	return `{"imports":{"datastar":"` + prefix + `/vendor/datastar-rocket.js"}}`
+// ImportMap is the inline import map's text (the CSP allows it by hash);
+// datastar is the URL of DatastarJS.
+func ImportMap(datastar string) string {
+	return `{"imports":{"datastar":"` + datastar + `"}}`
 }
 
 // SpeculationRules prefetch boards (not card URLs: the board is the same page).

@@ -21,8 +21,8 @@ templ Layout(p Page) {
 			<title>{ p.Title } · Kanban</title>
 			<link rel="icon" href={ p.Assets.URL("icon.svg") } type="image/svg+xml"/>
 			<link rel="stylesheet" href={ p.Assets.URL("app.css") }/>
-			@templ.Raw(`<script type="importmap">` + ImportMap(p.Assets.Prefix) + `</script>`)
-			<script type="module" src={ p.Assets.URL("vendor/datastar-rocket.js") }></script>
+			@templ.Raw(`<script type="importmap">` + ImportMap(p.Assets.URL(DatastarJS)) + `</script>`)
+			<script type="module" src={ p.Assets.URL(DatastarJS) }></script>
 			for _, m := range p.Modules {
 				<script type="module" src={ p.Assets.URL(m) }></script>
 			}

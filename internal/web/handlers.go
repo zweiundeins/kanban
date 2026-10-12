@@ -11,8 +11,10 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/a-h/templ"
+	"github.com/zweiundeins/lith/edge"
 
 	"kanban/internal/app"
 	"kanban/internal/views"
@@ -28,7 +30,7 @@ var boardModules = []string{
 }
 
 func (s *Server) pageOf(r *http.Request, title string) views.Page {
-	return views.Page{Title: title, Assets: views.Assets{Prefix: s.Static.Prefix}, User: userOf(r)}
+	return views.Page{Title: title, Assets: s.Static.URL, User: userOf(r)}
 }
 
 func (s *Server) html(w http.ResponseWriter, r *http.Request, status int, c templ.Component) {
@@ -174,15 +176,13 @@ type payload struct {
 // to empty once the command succeeded.
 type actionFunc func(ctx context.Context, r *http.Request, a app.Actor, board int64, p payload) (app.Outcome, error)
 
+// readPayload reads an action's user, board and body. Cross-site requests
+// never get here (edge.CSRF).
 func (s *Server) readPayload(w http.ResponseWriter, r *http.Request) (*app.User, int64, payload, bool) {
 	var p payload
 	u := userOf(r)
 	if u == nil {
 		http.Error(w, "Log in again.", http.StatusUnauthorized)
-		return nil, 0, p, false
-	}
-	if r.Header.Get("Datastar-Request") != "true" || !s.sameOrigin(r) {
-		http.Error(w, "Cross-site request refused.", http.StatusForbidden)
 		return nil, 0, p, false
 	}
 	board := pathID(r, "b")
@@ -195,7 +195,7 @@ func (s *Server) readPayload(w http.ResponseWriter, r *http.Request) (*app.User,
 		http.Error(w, "Bad request.", http.StatusBadRequest)
 		return nil, 0, p, false
 	}
-	if !s.actionRL.allow("u" + itoa(u.ID)) {
+	if s.actionRL != nil && !s.actionRL.Allow("u"+itoa(u.ID), 1, time.Now()) {
 		http.Error(w, "Too many changes at once. Wait a moment.", http.StatusTooManyRequests)
 		return nil, 0, p, false
 	}
@@ -355,6 +355,8 @@ func (s *Server) loginPage(w http.ResponseWriter, r *http.Request) {
 	s.html(w, r, http.StatusOK, views.Login(s.pageOf(r, "Log in"), "", "", s.csrfToken(w, r)))
 }
 
+// login checks the form's token too: a form whose token cookie is gone
+// has expired.
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
 	if err := r.ParseForm(); err != nil {
@@ -362,13 +364,13 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	c, err := r.Cookie(csrfCookie)
-	if !s.sameOrigin(r) || err != nil || c.Value == "" || r.PostFormValue("csrf") != c.Value {
+	if err != nil || c.Value == "" || r.PostFormValue("csrf") != c.Value {
 		http.Error(w, "The form expired. Reload the page and try again.", http.StatusForbidden)
 		return
 	}
 	email := r.PostFormValue("email")
 	page := s.pageOf(r, "Log in")
-	if !s.loginRL.allow("ip" + s.clientIP(r)) {
+	if !s.loginRL.Allow("ip"+edge.ClientKey(r), 1, time.Now()) {
 		s.html(w, r, http.StatusTooManyRequests, views.Login(page, email, "Too many attempts. Wait a minute and try again.", c.Value))
 		return
 	}
@@ -389,10 +391,6 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
-	if !s.sameOrigin(r) {
-		http.Error(w, "Cross-site request refused.", http.StatusForbidden)
-		return
-	}
 	if c, err := r.Cookie(sessionCookie); err == nil {
 		if err := s.App.Logout(r.Context(), c.Value); err != nil {
 			s.fail(w, r, err)

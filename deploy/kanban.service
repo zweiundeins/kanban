@@ -12,11 +12,12 @@ WorkingDirectory=/var/lib/kanban
 ExecStart=/opt/kanban/kanban serve \
 	-addr 127.0.0.1:8095 \
 	-db /var/lib/kanban/kanban.db \
-	-secure -proxied \
+	-secure \
 	-origins https://kanban.zweiundeins.gmbh \
 	-reset-at 03:00
-# Each busy live stream keeps about 2.2 MB of brotli state: the limit
-# makes the garbage collector work harder before memory grows past it.
+# Each busy live stream keeps about 1.6 MB of zstd state (2.1 MB of
+# brotli): the limit makes the garbage collector work harder before memory
+# grows past it.
 Environment=GOMEMLIMIT=600MiB
 Restart=always
 RestartSec=1

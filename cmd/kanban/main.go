@@ -23,6 +23,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/zweiundeins/lith/edge"
 	lithlive "github.com/zweiundeins/lith/live"
 	"github.com/zweiundeins/lith/sse"
 
@@ -35,7 +36,7 @@ import (
 
 type config struct {
 	addr, dbPath, sync, origins, adminEmail, adminPassword, resetAt, to, static string
-	secure, proxied, debug                                                      bool
+	secure, debug                                                               bool
 	throttle                                                                    time.Duration
 	lgwin, level, actions                                                       int
 }
@@ -55,7 +56,6 @@ func main() {
 	fsf.StringVar(&c.adminEmail, "admin-email", env("KANBAN_ADMIN_EMAIL", ""), "seed: an admin account besides the demo users")
 	fsf.StringVar(&c.adminPassword, "admin-password", env("KANBAN_ADMIN_PASSWORD", ""), "seed: the admin's password")
 	fsf.BoolVar(&c.secure, "secure", env("KANBAN_SECURE", "") == "1", "HTTPS only cookies and HSTS (behind a TLS proxy)")
-	fsf.BoolVar(&c.proxied, "proxied", env("KANBAN_PROXIED", "") == "1", "trust X-Forwarded-For from loopback")
 	fsf.BoolVar(&c.debug, "debug", env("KANBAN_DEBUG", "") == "1", "debug logging")
 	fsf.DurationVar(&c.throttle, "throttle", 50*time.Millisecond, "minimum time between two renders of a board")
 	// Browsers that accept zstd get it, the others brotli. On the 200-card
@@ -185,7 +185,7 @@ func serve(c config, log *slog.Logger) error {
 	if c.static != "" {
 		sub = os.DirFS(c.static)
 	}
-	static, err := web.NewStatic(sub)
+	static, err := edge.NewStatic(sub, "/static/")
 	if err != nil {
 		return err
 	}
@@ -197,7 +197,7 @@ func serve(c config, log *slog.Logger) error {
 	}
 	s := &web.Server{
 		App: a, Hub: hub, Seats: live.NewSeats(hub.Changed, 3*time.Second), Render: web.NewRenderer(), Static: static, Log: log,
-		Secure: c.secure, Origins: origins, Proxied: c.proxied, Actions: c.actions, Started: time.Now(), BuildRef: buildRef(),
+		Secure: c.secure, Origins: origins, Actions: c.actions, Started: time.Now(), BuildRef: buildRef(),
 	}
 	srv := &http.Server{
 		Addr:              c.addr,
