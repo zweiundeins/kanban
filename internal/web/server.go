@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/andybalholm/brotli"
+	"github.com/zweiundeins/lith/writer"
 
 	"kanban/internal/app"
 	"kanban/internal/live"
@@ -319,7 +320,7 @@ func (l *limiter) allow(key string) bool {
 
 func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 	var one int
-	err := s.App.DB.Read.QueryRowContext(r.Context(), "SELECT 1").Scan(&one)
+	err := s.App.DB.R.QueryRowContext(r.Context(), "SELECT 1").Scan(&one)
 	s.Render.cards.mu.Lock()
 	cards := map[string]int64{"hits": s.Render.cards.hits, "misses": s.Render.cards.miss, "size": int64(len(s.Render.cards.items))}
 	s.Render.cards.mu.Unlock()
@@ -332,7 +333,7 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 		"goroutines": runtime.NumGoroutine(),
 		"build":      s.BuildRef,
 		"uptime_s":   int(time.Since(s.Started).Seconds()),
-		"writer":     s.App.DB.W.Stats(),
+		"writer":     writerStats(s.App.DB.W.Stats()),
 		"live":       s.Hub.Stats(),
 		"card_cache": cards,
 	}
@@ -342,6 +343,14 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 	json.NewEncoder(w).Encode(body)
+}
+
+// writerStats are the writer's counters under the names the load test reads.
+func writerStats(ws writer.Stats) map[string]any {
+	return map[string]any{
+		"commands": ws.Commands, "batches": ws.Batches, "failed": ws.Failures, "max_batch": ws.MaxBatch,
+		"queue_depth": ws.Queue, "commit_nanos": ws.Busy.Nanoseconds(), "p99_commit_ms": float64(ws.P99Commit.Microseconds()) / 1000,
+	}
 }
 
 func pathID(r *http.Request, name string) int64 {

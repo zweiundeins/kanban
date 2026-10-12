@@ -79,7 +79,7 @@ func BenchmarkMoveCard(b *testing.B) {
 			batches := float64(s.Batches - s0.Batches)
 			b.ReportMetric(float64(b.N)/b.Elapsed().Seconds(), "moves/s")
 			b.ReportMetric(float64(s.Commands-s0.Commands)/batches, "moves/batch")
-			b.ReportMetric(float64(s.CommitNanos-s0.CommitNanos)/batches/1e6, "ms/batch")
+			b.ReportMetric(float64(s.Busy-s0.Busy)/batches/1e6, "ms/batch")
 			if refused.Load() > 0 {
 				b.Errorf("%d moves refused", refused.Load())
 			}

@@ -14,7 +14,7 @@ import (
 
 	"golang.org/x/crypto/argon2"
 
-	"kanban/internal/db"
+	"github.com/zweiundeins/lith/writer"
 )
 
 // SessionTTL is how long a login lasts.
@@ -92,14 +92,14 @@ func (a *App) Login(ctx context.Context, email, pw string) (token string, user U
 	}
 	token = base64.RawURLEncoding.EncodeToString(raw)
 	now := time.Now()
-	err = a.DB.W.Do(ctx, func(tx *db.Tx) error {
+	err = a.DB.W.Do(ctx, writer.Func(func(tx *writer.Tx) error {
 		if _, err := tx.Exec(`DELETE FROM sessions WHERE expires_at < ?`, now.Unix()); err != nil {
 			return err
 		}
 		_, err := tx.Exec(`INSERT INTO sessions (token_hash, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)`,
 			tokenHash(token), user.ID, now.Unix(), now.Add(SessionTTL).Unix())
 		return err
-	})
+	}))
 	return token, user, err
 }
 
@@ -121,8 +121,8 @@ func (a *App) Session(ctx context.Context, token string) (User, error) {
 
 // Logout ends a session.
 func (a *App) Logout(ctx context.Context, token string) error {
-	return a.DB.W.Do(ctx, func(tx *db.Tx) error {
+	return a.DB.W.Do(ctx, writer.Func(func(tx *writer.Tx) error {
 		_, err := tx.Exec(`DELETE FROM sessions WHERE token_hash = ?`, tokenHash(token))
 		return err
-	})
+	}))
 }

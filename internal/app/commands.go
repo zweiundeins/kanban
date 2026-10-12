@@ -7,12 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
 	"unicode/utf8"
 
-	"kanban/internal/db"
+	"github.com/zweiundeins/lith/writer"
 )
 
 // Rejection is a command's refusal, with the reason the user reads. The
@@ -42,13 +43,14 @@ var opRe = regexp.MustCompile(`^[A-Za-z0-9_-]{1,40}$`)
 
 // act runs fn as one writer command on board for actor: membership is
 // checked, a replayed op gets its first outcome, a rejection is recorded
-// like a success. Only real errors (the database) fail the command.
-func (a *App) act(ctx context.Context, actor Actor, board int64, fn func(tx *db.Tx) (notice string, err error)) (Outcome, error) {
+// like a success. Only real errors (the database) fail the command. lith's
+// writer.Once would record successes only, and no outcome.
+func (a *App) act(ctx context.Context, actor Actor, board int64, fn func(tx *writer.Tx) (notice string, err error)) (Outcome, error) {
 	if actor.Op != "" && !opRe.MatchString(actor.Op) {
 		return Outcome{}, fmt.Errorf("bad op id")
 	}
 	var out Outcome
-	err := a.DB.W.Do(ctx, func(tx *db.Tx) error {
+	err := a.DB.W.Do(ctx, writer.Func(func(tx *writer.Tx) error {
 		out = Outcome{}
 		if actor.Op != "" {
 			var result string
@@ -68,7 +70,7 @@ func (a *App) act(ctx context.Context, actor Actor, board int64, fn func(tx *db.
 		var notice string
 		inner := error(&Rejection{Msg: "You are not a member of this board."})
 		if member == 1 {
-			inner = tx.Savepoint(func() error {
+			inner = tx.Savepoint(func(tx *writer.Tx) error {
 				var err error
 				notice, err = fn(tx)
 				return err
@@ -94,16 +96,30 @@ func (a *App) act(ctx context.Context, actor Actor, board int64, fn func(tx *db.
 			}
 		}
 		return nil
-	})
+	}))
 	return out, err
 }
 
 // PruneOps forgets outcomes older than a day.
 func (a *App) PruneOps(ctx context.Context) error {
-	return a.DB.W.Do(ctx, func(tx *db.Tx) error {
+	return a.DB.W.Do(ctx, writer.Func(func(tx *writer.Tx) error {
 		_, err := tx.Exec(`DELETE FROM ops WHERE created_at < ?`, time.Now().Add(-24*time.Hour).Unix())
 		return err
-	})
+	}))
+}
+
+// BoardTopic names what changes with a board: its lists, cards and labels.
+func BoardTopic(board int64) string { return "board:" + strconv.FormatInt(board, 10) }
+
+// touch records that the command changed the board: it bumps the board's
+// version, which frames and outcomes are ordered by, and touches its topic.
+// A command touches a board once.
+func touch(tx *writer.Tx, board int64) error {
+	if _, err := tx.Exec(`UPDATE boards SET version = version + 1 WHERE id = ?`, board); err != nil {
+		return fmt.Errorf("touch board %d: %w", board, err)
+	}
+	tx.Touch(BoardTopic(board))
+	return nil
 }
 
 // cleanText trims s and refuses empty, too long or control characters.
@@ -138,7 +154,7 @@ func quote(s string) string {
 }
 
 // cardOn checks that card is on board and active, and returns its list and title.
-func cardOn(tx *db.Tx, board, card int64) (list int64, title string, err error) {
+func cardOn(tx *writer.Tx, board, card int64) (list int64, title string, err error) {
 	var archived sql.NullInt64
 	err = tx.QueryRow(`SELECT list_id, title, archived_at FROM cards WHERE id = ? AND board_id = ?`, card, board).Scan(&list, &title, &archived)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -150,7 +166,7 @@ func cardOn(tx *db.Tx, board, card int64) (list int64, title string, err error) 
 	return list, title, err
 }
 
-func listOn(tx *db.Tx, board, list int64) (name string, err error) {
+func listOn(tx *writer.Tx, board, list int64) (name string, err error) {
 	var archived sql.NullInt64
 	err = tx.QueryRow(`SELECT name, archived_at FROM lists WHERE id = ? AND board_id = ?`, list, board).Scan(&name, &archived)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -162,17 +178,16 @@ func listOn(tx *db.Tx, board, list int64) (name string, err error) {
 	return name, err
 }
 
-func bumpCard(tx *db.Tx, board, card int64) error {
+func bumpCard(tx *writer.Tx, board, card int64) error {
 	if _, err := tx.Exec(`UPDATE cards SET version = version + 1 WHERE id = ?`, card); err != nil {
 		return err
 	}
-	_, err := tx.Touch(board)
-	return err
+	return touch(tx, board)
 }
 
 // CreateList adds a list at the end of the board.
 func (a *App) CreateList(ctx context.Context, actor Actor, board int64, name string) (Outcome, error) {
-	return a.act(ctx, actor, board, func(tx *db.Tx) (string, error) {
+	return a.act(ctx, actor, board, func(tx *writer.Tx) (string, error) {
 		name, err := cleanText("A list name", name, 100, false)
 		if err != nil {
 			return "", err
@@ -184,14 +199,14 @@ func (a *App) CreateList(ctx context.Context, actor Actor, board int64, name str
 		if _, err := tx.Exec(`INSERT INTO lists (board_id, name, position) VALUES (?, ?, ?)`, board, name, pos); err != nil {
 			return "", err
 		}
-		_, err = tx.Touch(board)
+		err = touch(tx, board)
 		return "Added the list " + quote(name) + ".", err
 	})
 }
 
 // RenameList renames a list.
 func (a *App) RenameList(ctx context.Context, actor Actor, board, list int64, name string) (Outcome, error) {
-	return a.act(ctx, actor, board, func(tx *db.Tx) (string, error) {
+	return a.act(ctx, actor, board, func(tx *writer.Tx) (string, error) {
 		if _, err := listOn(tx, board, list); err != nil {
 			return "", err
 		}
@@ -202,7 +217,7 @@ func (a *App) RenameList(ctx context.Context, actor Actor, board, list int64, na
 		if _, err := tx.Exec(`UPDATE lists SET name = ? WHERE id = ?`, name, list); err != nil {
 			return "", err
 		}
-		_, err = tx.Touch(board)
+		err = touch(tx, board)
 		return "Renamed the list to " + quote(name) + ".", err
 	})
 }
@@ -211,7 +226,7 @@ func (a *App) RenameList(ctx context.Context, actor Actor, board, list int64, na
 // moved since the page showed it (seen is its move_version there; -1
 // skips the check).
 func (a *App) MoveList(ctx context.Context, actor Actor, board, list, before, seen int64) (Outcome, error) {
-	return a.act(ctx, actor, board, func(tx *db.Tx) (string, error) {
+	return a.act(ctx, actor, board, func(tx *writer.Tx) (string, error) {
 		name, err := listOn(tx, board, list)
 		if err != nil {
 			return "", err
@@ -250,14 +265,14 @@ func (a *App) MoveList(ctx context.Context, actor Actor, board, list, before, se
 		if _, err := tx.Exec(`UPDATE lists SET position = ?, moved_by = ?, move_version = move_version + 1 WHERE id = ?`, pos, actor.User, list); err != nil {
 			return "", err
 		}
-		_, err = tx.Touch(board)
+		err = touch(tx, board)
 		return "Moved the list " + quote(name) + ".", err
 	})
 }
 
 // ArchiveList hides a list and its cards.
 func (a *App) ArchiveList(ctx context.Context, actor Actor, board, list int64) (Outcome, error) {
-	return a.act(ctx, actor, board, func(tx *db.Tx) (string, error) {
+	return a.act(ctx, actor, board, func(tx *writer.Tx) (string, error) {
 		name, err := listOn(tx, board, list)
 		if err != nil {
 			return "", err
@@ -265,14 +280,14 @@ func (a *App) ArchiveList(ctx context.Context, actor Actor, board, list int64) (
 		if _, err := tx.Exec(`UPDATE lists SET archived_at = ? WHERE id = ?`, time.Now().Unix(), list); err != nil {
 			return "", err
 		}
-		_, err = tx.Touch(board)
+		err = touch(tx, board)
 		return "Archived the list " + quote(name) + ".", err
 	})
 }
 
 // CreateCard adds a card at the end of a list.
 func (a *App) CreateCard(ctx context.Context, actor Actor, board, list int64, title string) (Outcome, error) {
-	return a.act(ctx, actor, board, func(tx *db.Tx) (string, error) {
+	return a.act(ctx, actor, board, func(tx *writer.Tx) (string, error) {
 		lname, err := listOn(tx, board, list)
 		if err != nil {
 			return "", err
@@ -289,14 +304,14 @@ func (a *App) CreateCard(ctx context.Context, actor Actor, board, list int64, ti
 			board, list, title, pos, actor.User, time.Now().Unix()); err != nil {
 			return "", err
 		}
-		_, err = tx.Touch(board)
+		err = touch(tx, board)
 		return "Added " + quote(title) + " to " + quote(lname) + ".", err
 	})
 }
 
 // RenameCard changes a card's title.
 func (a *App) RenameCard(ctx context.Context, actor Actor, board, card int64, title string) (Outcome, error) {
-	return a.act(ctx, actor, board, func(tx *db.Tx) (string, error) {
+	return a.act(ctx, actor, board, func(tx *writer.Tx) (string, error) {
 		if _, _, err := cardOn(tx, board, card); err != nil {
 			return "", err
 		}
@@ -322,7 +337,7 @@ type Move struct {
 // MoveCard applies a move, unless the card or its anchor moved since the
 // page was drawn: then it says who moved what, and nothing changes.
 func (a *App) MoveCard(ctx context.Context, actor Actor, board int64, m Move) (Outcome, error) {
-	return a.act(ctx, actor, board, func(tx *db.Tx) (string, error) {
+	return a.act(ctx, actor, board, func(tx *writer.Tx) (string, error) {
 		var (
 			from, moveVersion int64
 			title             string
@@ -381,7 +396,7 @@ func (a *App) MoveCard(ctx context.Context, actor Actor, board int64, m Move) (O
 			m.List, pos, actor.User, m.Card); err != nil {
 			return "", err
 		}
-		if _, err := tx.Touch(board); err != nil {
+		if err := touch(tx, board); err != nil {
 			return "", err
 		}
 		if from == m.List {
@@ -393,7 +408,7 @@ func (a *App) MoveCard(ctx context.Context, actor Actor, board int64, m Move) (O
 
 // ArchiveCard hides a card.
 func (a *App) ArchiveCard(ctx context.Context, actor Actor, board, card int64) (Outcome, error) {
-	return a.act(ctx, actor, board, func(tx *db.Tx) (string, error) {
+	return a.act(ctx, actor, board, func(tx *writer.Tx) (string, error) {
 		_, title, err := cardOn(tx, board, card)
 		if err != nil {
 			return "", err
@@ -407,7 +422,7 @@ func (a *App) ArchiveCard(ctx context.Context, actor Actor, board, card int64) (
 
 // SetDescription saves a card's Markdown description ("" removes it).
 func (a *App) SetDescription(ctx context.Context, actor Actor, board, card int64, text string) (Outcome, error) {
-	return a.act(ctx, actor, board, func(tx *db.Tx) (string, error) {
+	return a.act(ctx, actor, board, func(tx *writer.Tx) (string, error) {
 		if _, _, err := cardOn(tx, board, card); err != nil {
 			return "", err
 		}
@@ -429,7 +444,7 @@ var dateRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 
 // SetDue sets or clears ("") a card's due date.
 func (a *App) SetDue(ctx context.Context, actor Actor, board, card int64, day string) (Outcome, error) {
-	return a.act(ctx, actor, board, func(tx *db.Tx) (string, error) {
+	return a.act(ctx, actor, board, func(tx *writer.Tx) (string, error) {
 		if _, _, err := cardOn(tx, board, card); err != nil {
 			return "", err
 		}
@@ -451,7 +466,7 @@ func (a *App) SetDue(ctx context.Context, actor Actor, board, card int64, day st
 
 // SetDueDone marks a due date as done or not.
 func (a *App) SetDueDone(ctx context.Context, actor Actor, board, card int64, done bool) (Outcome, error) {
-	return a.act(ctx, actor, board, func(tx *db.Tx) (string, error) {
+	return a.act(ctx, actor, board, func(tx *writer.Tx) (string, error) {
 		if _, _, err := cardOn(tx, board, card); err != nil {
 			return "", err
 		}
@@ -474,7 +489,7 @@ func (a *App) SetDueDone(ctx context.Context, actor Actor, board, card int64, do
 
 // SetLabel puts a board label on a card or takes it off.
 func (a *App) SetLabel(ctx context.Context, actor Actor, board, card, label int64, on bool) (Outcome, error) {
-	return a.act(ctx, actor, board, func(tx *db.Tx) (string, error) {
+	return a.act(ctx, actor, board, func(tx *writer.Tx) (string, error) {
 		if _, _, err := cardOn(tx, board, card); err != nil {
 			return "", err
 		}
@@ -503,7 +518,7 @@ var LabelColors = []string{"green", "yellow", "orange", "red", "purple", "blue",
 
 // CreateLabel adds a label to the board and puts it on card (if card != 0).
 func (a *App) CreateLabel(ctx context.Context, actor Actor, board, card int64, name, color string) (Outcome, error) {
-	return a.act(ctx, actor, board, func(tx *db.Tx) (string, error) {
+	return a.act(ctx, actor, board, func(tx *writer.Tx) (string, error) {
 		name, err := cleanText("A label name", name, 40, false)
 		if err != nil {
 			return "", err
@@ -535,14 +550,14 @@ func (a *App) CreateLabel(ctx context.Context, actor Actor, board, card int64, n
 			}
 			return "Created the label " + quote(name) + ".", bumpCard(tx, board, card)
 		}
-		_, err = tx.Touch(board)
+		err = touch(tx, board)
 		return "Created the label " + quote(name) + ".", err
 	})
 }
 
 // AddComment adds a comment to a card.
 func (a *App) AddComment(ctx context.Context, actor Actor, board, card int64, body string) (Outcome, error) {
-	return a.act(ctx, actor, board, func(tx *db.Tx) (string, error) {
+	return a.act(ctx, actor, board, func(tx *writer.Tx) (string, error) {
 		if _, _, err := cardOn(tx, board, card); err != nil {
 			return "", err
 		}
@@ -559,7 +574,7 @@ func (a *App) AddComment(ctx context.Context, actor Actor, board, card int64, bo
 
 // DeleteComment deletes one of the actor's own comments.
 func (a *App) DeleteComment(ctx context.Context, actor Actor, board, comment int64) (Outcome, error) {
-	return a.act(ctx, actor, board, func(tx *db.Tx) (string, error) {
+	return a.act(ctx, actor, board, func(tx *writer.Tx) (string, error) {
 		var card, author int64
 		err := tx.QueryRow(`SELECT cm.card_id, cm.user_id FROM comments cm JOIN cards c ON c.id = cm.card_id WHERE cm.id = ? AND c.board_id = ?`, comment, board).Scan(&card, &author)
 		if errors.Is(err, sql.ErrNoRows) {

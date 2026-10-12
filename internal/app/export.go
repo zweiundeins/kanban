@@ -51,7 +51,7 @@ type ExportComment struct {
 // ExportAll reads every project, board, list and card.
 func (a *App) ExportAll(ctx context.Context) (*Export, error) {
 	var out Export
-	err := a.DB.ReadTx(ctx, func(tx *sql.Tx) error {
+	err := a.DB.View(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx, `SELECT email, name FROM users ORDER BY id`)
 		if err != nil {
 			return err
@@ -88,7 +88,7 @@ func (a *App) ExportAll(ctx context.Context) (*Export, error) {
 				return err
 			}
 			for _, ref := range refs {
-				b, err := a.LoadBoard(ctx, ref.ID)
+				b, err := ReadBoard(ctx, tx, ref.ID)
 				if err != nil {
 					return err
 				}
@@ -99,7 +99,7 @@ func (a *App) ExportAll(ctx context.Context) (*Export, error) {
 				for _, l := range b.Lists {
 					el := ExportList{Name: l.Name}
 					for _, c := range l.Cards {
-						d, err := a.LoadCard(ctx, b.ID, c.ID)
+						d, err := ReadCard(ctx, tx, b.ID, c.ID)
 						if err != nil {
 							return err
 						}

@@ -158,113 +158,119 @@ func (a *App) Projects(ctx context.Context, user int64) ([]Project, error) {
 	return out, rows.Err()
 }
 
-// LoadBoard reads the whole board in one snapshot.
-func (a *App) LoadBoard(ctx context.Context, id int64) (*Board, error) {
-	var b Board
-	err := a.DB.ReadTx(ctx, func(tx *sql.Tx) error {
-		err := tx.QueryRowContext(ctx, `SELECT b.id, b.name, b.version, p.id, p.name FROM boards b JOIN projects p ON p.id = b.project_id WHERE b.id = ?`, id).
-			Scan(&b.ID, &b.Name, &b.Version, &b.ProjectID, &b.ProjectName)
-		if errors.Is(err, sql.ErrNoRows) {
-			return ErrNotFound
-		} else if err != nil {
-			return err
-		}
-		if b.Siblings, err = boardRefs(ctx, tx, b.ProjectID); err != nil {
-			return err
-		}
-		if b.Labels, err = boardLabels(ctx, tx, id); err != nil {
-			return err
-		}
-		labelByID := make(map[int64]Label, len(b.Labels))
-		for _, l := range b.Labels {
-			labelByID[l.ID] = l
-		}
-		if b.Members, err = boardMembers(ctx, tx, id); err != nil {
-			return err
-		}
-
-		rows, err := tx.QueryContext(ctx, `SELECT id, name, move_version FROM lists WHERE board_id = ? AND archived_at IS NULL ORDER BY position, id`, id)
-		if err != nil {
-			return err
-		}
-		listIdx := map[int64]int{}
-		for rows.Next() {
-			var l List
-			if err := rows.Scan(&l.ID, &l.Name, &l.MoveVersion); err != nil {
-				rows.Close()
-				return err
-			}
-			listIdx[l.ID] = len(b.Lists)
-			b.Lists = append(b.Lists, l)
-		}
-		rows.Close()
-		if err := rows.Err(); err != nil {
-			return err
-		}
-
-		cardLabels := map[int64][]Label{}
-		rows, err = tx.QueryContext(ctx, `
-			SELECT cl.card_id, cl.label_id FROM card_labels cl
-			JOIN cards c ON c.id = cl.card_id
-			WHERE c.board_id = ? AND c.archived_at IS NULL
-			ORDER BY cl.card_id, cl.label_id`, id)
-		if err != nil {
-			return err
-		}
-		for rows.Next() {
-			var c, l int64
-			if err := rows.Scan(&c, &l); err != nil {
-				rows.Close()
-				return err
-			}
-			if lab, ok := labelByID[l]; ok {
-				cardLabels[c] = append(cardLabels[c], lab)
-			}
-		}
-		rows.Close()
-
-		comments := map[int64]int{}
-		rows, err = tx.QueryContext(ctx, `
-			SELECT cm.card_id, count(*) FROM comments cm
-			JOIN cards c ON c.id = cm.card_id
-			WHERE c.board_id = ? AND c.archived_at IS NULL
-			GROUP BY cm.card_id`, id)
-		if err != nil {
-			return err
-		}
-		for rows.Next() {
-			var c int64
-			var n int
-			if err := rows.Scan(&c, &n); err != nil {
-				rows.Close()
-				return err
-			}
-			comments[c] = n
-		}
-		rows.Close()
-
-		rows, err = tx.QueryContext(ctx, `
-			SELECT id, list_id, title, version, move_version, coalesce(due_on, ''), due_done, description != ''
-			FROM cards WHERE board_id = ? AND archived_at IS NULL
-			ORDER BY list_id, position, id`, id)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-		for rows.Next() {
-			var c Card
-			if err := rows.Scan(&c.ID, &c.ListID, &c.Title, &c.Version, &c.MoveVersion, &c.DueOn, &c.DueDone, &c.HasDesc); err != nil {
-				return err
-			}
-			c.Labels = cardLabels[c.ID]
-			c.Comments = comments[c.ID]
-			if i, ok := listIdx[c.ListID]; ok {
-				b.Lists[i].Cards = append(b.Lists[i].Cards, c)
-			}
-		}
-		return rows.Err()
+// LoadBoard reads the whole board in a read transaction of its own.
+func (a *App) LoadBoard(ctx context.Context, id int64) (b *Board, err error) {
+	err = a.DB.View(ctx, func(tx *sql.Tx) error {
+		b, err = ReadBoard(ctx, tx, id)
+		return err
 	})
+	return b, err
+}
+
+// ReadBoard reads the whole board in tx.
+func ReadBoard(ctx context.Context, tx *sql.Tx, id int64) (*Board, error) {
+	var b Board
+	err := tx.QueryRowContext(ctx, `SELECT b.id, b.name, b.version, p.id, p.name FROM boards b JOIN projects p ON p.id = b.project_id WHERE b.id = ?`, id).
+		Scan(&b.ID, &b.Name, &b.Version, &b.ProjectID, &b.ProjectName)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+	if b.Siblings, err = boardRefs(ctx, tx, b.ProjectID); err != nil {
+		return nil, err
+	}
+	if b.Labels, err = boardLabels(ctx, tx, id); err != nil {
+		return nil, err
+	}
+	labelByID := make(map[int64]Label, len(b.Labels))
+	for _, l := range b.Labels {
+		labelByID[l.ID] = l
+	}
+	if b.Members, err = boardMembers(ctx, tx, id); err != nil {
+		return nil, err
+	}
+
+	rows, err := tx.QueryContext(ctx, `SELECT id, name, move_version FROM lists WHERE board_id = ? AND archived_at IS NULL ORDER BY position, id`, id)
 	if err != nil {
+		return nil, err
+	}
+	listIdx := map[int64]int{}
+	for rows.Next() {
+		var l List
+		if err := rows.Scan(&l.ID, &l.Name, &l.MoveVersion); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		listIdx[l.ID] = len(b.Lists)
+		b.Lists = append(b.Lists, l)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	cardLabels := map[int64][]Label{}
+	rows, err = tx.QueryContext(ctx, `
+		SELECT cl.card_id, cl.label_id FROM card_labels cl
+		JOIN cards c ON c.id = cl.card_id
+		WHERE c.board_id = ? AND c.archived_at IS NULL
+		ORDER BY cl.card_id, cl.label_id`, id)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var c, l int64
+		if err := rows.Scan(&c, &l); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		if lab, ok := labelByID[l]; ok {
+			cardLabels[c] = append(cardLabels[c], lab)
+		}
+	}
+	rows.Close()
+
+	comments := map[int64]int{}
+	rows, err = tx.QueryContext(ctx, `
+		SELECT cm.card_id, count(*) FROM comments cm
+		JOIN cards c ON c.id = cm.card_id
+		WHERE c.board_id = ? AND c.archived_at IS NULL
+		GROUP BY cm.card_id`, id)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var c int64
+		var n int
+		if err := rows.Scan(&c, &n); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		comments[c] = n
+	}
+	rows.Close()
+
+	rows, err = tx.QueryContext(ctx, `
+		SELECT id, list_id, title, version, move_version, coalesce(due_on, ''), due_done, description != ''
+		FROM cards WHERE board_id = ? AND archived_at IS NULL
+		ORDER BY list_id, position, id`, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var c Card
+		if err := rows.Scan(&c.ID, &c.ListID, &c.Title, &c.Version, &c.MoveVersion, &c.DueOn, &c.DueDone, &c.HasDesc); err != nil {
+			return nil, err
+		}
+		c.Labels = cardLabels[c.ID]
+		c.Comments = comments[c.ID]
+		if i, ok := listIdx[c.ListID]; ok {
+			b.Lists[i].Cards = append(b.Lists[i].Cards, c)
+		}
+	}
+	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 	return &b, nil
@@ -304,6 +310,11 @@ func boardLabels(ctx context.Context, tx *sql.Tx, board int64) ([]Label, error) 
 	return out, rows.Err()
 }
 
+// ReadMembers reads the board's members in tx, by name.
+func ReadMembers(ctx context.Context, tx *sql.Tx, board int64) ([]User, error) {
+	return boardMembers(ctx, tx, board)
+}
+
 func boardMembers(ctx context.Context, tx *sql.Tx, board int64) ([]User, error) {
 	rows, err := tx.QueryContext(ctx, `
 		SELECT u.id, u.email, u.name, u.color FROM users u
@@ -324,62 +335,68 @@ func boardMembers(ctx context.Context, tx *sql.Tx, board int64) ([]User, error) 
 	return out, rows.Err()
 }
 
-// LoadCard reads one card with its comments, for the detail view.
-func (a *App) LoadCard(ctx context.Context, board, id int64) (*CardDetail, error) {
-	var c CardDetail
-	err := a.DB.ReadTx(ctx, func(tx *sql.Tx) error {
-		var archived sql.NullInt64
-		err := tx.QueryRowContext(ctx, `
-			SELECT c.id, c.board_id, c.list_id, l.name, c.title, c.description, c.version, c.move_version,
-			       coalesce(c.due_on, ''), c.due_done, c.archived_at, c.created_at,
-			       u.id, u.email, u.name, u.color
-			FROM cards c JOIN lists l ON l.id = c.list_id JOIN users u ON u.id = c.created_by
-			WHERE c.id = ? AND c.board_id = ?`, id, board).
-			Scan(&c.ID, &c.BoardID, &c.ListID, &c.ListName, &c.Title, &c.Description, &c.Version, &c.MoveVersion,
-				&c.DueOn, &c.DueDone, &archived, &c.CreatedAt,
-				&c.CreatedBy.ID, &c.CreatedBy.Email, &c.CreatedBy.Name, &c.CreatedBy.Color)
-		if errors.Is(err, sql.ErrNoRows) {
-			return ErrNotFound
-		} else if err != nil {
-			return err
-		}
-		c.Archived = archived.Valid
-		c.HasDesc = c.Description != ""
-		if c.BoardLabels, err = boardLabels(ctx, tx, board); err != nil {
-			return err
-		}
-		rows, err := tx.QueryContext(ctx, `SELECT l.id, l.name, l.color FROM card_labels cl JOIN labels l ON l.id = cl.label_id WHERE cl.card_id = ? ORDER BY l.name, l.id`, id)
-		if err != nil {
-			return err
-		}
-		for rows.Next() {
-			var l Label
-			if err := rows.Scan(&l.ID, &l.Name, &l.Color); err != nil {
-				rows.Close()
-				return err
-			}
-			c.Labels = append(c.Labels, l)
-		}
-		rows.Close()
-		rows, err = tx.QueryContext(ctx, `
-			SELECT cm.id, cm.body, cm.created_at, u.id, u.email, u.name, u.color
-			FROM comments cm JOIN users u ON u.id = cm.user_id
-			WHERE cm.card_id = ? ORDER BY cm.id`, id)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-		for rows.Next() {
-			var cm Comment
-			if err := rows.Scan(&cm.ID, &cm.Body, &cm.CreatedAt, &cm.Author.ID, &cm.Author.Email, &cm.Author.Name, &cm.Author.Color); err != nil {
-				return err
-			}
-			c.CommentList = append(c.CommentList, cm)
-		}
-		c.Comments = len(c.CommentList)
-		return rows.Err()
+// LoadCard reads one card in a read transaction of its own.
+func (a *App) LoadCard(ctx context.Context, board, id int64) (c *CardDetail, err error) {
+	err = a.DB.View(ctx, func(tx *sql.Tx) error {
+		c, err = ReadCard(ctx, tx, board, id)
+		return err
 	})
+	return c, err
+}
+
+// ReadCard reads one card with its comments in tx, for the detail view.
+func ReadCard(ctx context.Context, tx *sql.Tx, board, id int64) (*CardDetail, error) {
+	var c CardDetail
+	var archived sql.NullInt64
+	err := tx.QueryRowContext(ctx, `
+		SELECT c.id, c.board_id, c.list_id, l.name, c.title, c.description, c.version, c.move_version,
+		       coalesce(c.due_on, ''), c.due_done, c.archived_at, c.created_at,
+		       u.id, u.email, u.name, u.color
+		FROM cards c JOIN lists l ON l.id = c.list_id JOIN users u ON u.id = c.created_by
+		WHERE c.id = ? AND c.board_id = ?`, id, board).
+		Scan(&c.ID, &c.BoardID, &c.ListID, &c.ListName, &c.Title, &c.Description, &c.Version, &c.MoveVersion,
+			&c.DueOn, &c.DueDone, &archived, &c.CreatedAt,
+			&c.CreatedBy.ID, &c.CreatedBy.Email, &c.CreatedBy.Name, &c.CreatedBy.Color)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+	c.Archived = archived.Valid
+	c.HasDesc = c.Description != ""
+	if c.BoardLabels, err = boardLabels(ctx, tx, board); err != nil {
+		return nil, err
+	}
+	rows, err := tx.QueryContext(ctx, `SELECT l.id, l.name, l.color FROM card_labels cl JOIN labels l ON l.id = cl.label_id WHERE cl.card_id = ? ORDER BY l.name, l.id`, id)
 	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var l Label
+		if err := rows.Scan(&l.ID, &l.Name, &l.Color); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		c.Labels = append(c.Labels, l)
+	}
+	rows.Close()
+	rows, err = tx.QueryContext(ctx, `
+		SELECT cm.id, cm.body, cm.created_at, u.id, u.email, u.name, u.color
+		FROM comments cm JOIN users u ON u.id = cm.user_id
+		WHERE cm.card_id = ? ORDER BY cm.id`, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var cm Comment
+		if err := rows.Scan(&cm.ID, &cm.Body, &cm.CreatedAt, &cm.Author.ID, &cm.Author.Email, &cm.Author.Name, &cm.Author.Color); err != nil {
+			return nil, err
+		}
+		c.CommentList = append(c.CommentList, cm)
+	}
+	c.Comments = len(c.CommentList)
+	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 	return &c, nil

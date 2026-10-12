@@ -4,10 +4,10 @@ go 1.26.5
 
 require (
 	github.com/a-h/templ v0.3.1020
-	github.com/andybalholm/brotli v1.2.5
+	github.com/andybalholm/brotli v1.2.6
 	github.com/yuin/goldmark v1.8.6
+	github.com/zweiundeins/lith v0.0.0-00010101000000-000000000000
 	golang.org/x/crypto v0.57.0
-	modernc.org/sqlite v1.60.1
 )
 
 require (
@@ -95,7 +95,7 @@ require (
 	github.com/hashicorp/go-getter v1.8.9 // indirect
 	github.com/hashicorp/go-version v1.9.0 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
-	github.com/klauspost/compress v1.19.2 // indirect
+	github.com/klauspost/compress v1.20.1 // indirect
 	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.1 // indirect
@@ -157,6 +157,7 @@ require (
 	modernc.org/libc v1.77.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
+	modernc.org/sqlite v1.60.1 // indirect
 	mvdan.cc/sh/v3 v3.14.1 // indirect
 	mvdan.cc/sh/x v0.0.0-20260922090537-aebdf2b86f56 // indirect
 )
@@ -166,3 +167,5 @@ tool (
 	github.com/air-verse/air
 	github.com/go-task/task/v3/cmd/task
 )
+
+replace github.com/zweiundeins/lith => /develop/lith

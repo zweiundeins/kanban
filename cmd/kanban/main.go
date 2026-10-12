@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -143,6 +144,19 @@ func export(c config) error {
 	return enc.Encode(out)
 }
 
+// boardsOf reads the boards that commits touched from their topics.
+func boardsOf(topics []string) []int64 {
+	var boards []int64
+	for _, t := range topics {
+		if id, ok := strings.CutPrefix(t, "board:"); ok {
+			if b, err := strconv.ParseInt(id, 10, 64); err == nil {
+				boards = append(boards, b)
+			}
+		}
+	}
+	return boards
+}
+
 func buildRef() string {
 	if bi, ok := debug.ReadBuildInfo(); ok {
 		for _, s := range bi.Settings {
@@ -164,7 +178,7 @@ func serve(c config, log *slog.Logger) error {
 		hub.Slots = make(chan struct{}, c.slots)
 	}
 	hub.Log = log
-	d, err := db.Open(ctx, c.dbPath, db.Options{Synchronous: c.sync, OnCommit: func(boards []int64) { hub.Changed(boards...) }})
+	d, err := db.Open(ctx, c.dbPath, db.Options{Synchronous: c.sync, Log: log, OnCommit: func(topics []string) { hub.Changed(boardsOf(topics)...) }})
 	if err != nil {
 		return err
 	}

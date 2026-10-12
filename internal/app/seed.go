@@ -6,7 +6,7 @@ import (
 	"math/rand/v2"
 	"time"
 
-	"kanban/internal/db"
+	"github.com/zweiundeins/lith/writer"
 )
 
 // SeedUser is a demo account.
@@ -63,7 +63,7 @@ func (a *App) Seed(ctx context.Context, adminEmail, adminPassword string) error 
 		users = append(users, SeedUser{adminEmail, "Admin", "#005546"})
 		hashes = append(hashes, h)
 	}
-	return a.DB.W.Do(ctx, func(tx *db.Tx) error {
+	return a.DB.W.Do(ctx, writer.Func(func(tx *writer.Tx) error {
 		var n int
 		if err := tx.QueryRow(`SELECT count(*) FROM users`).Scan(&n); err != nil {
 			return err
@@ -80,7 +80,7 @@ func (a *App) Seed(ctx context.Context, adminEmail, adminPassword string) error 
 		}
 		_, err := seedBoards(tx, ids, 0)
 		return err
-	})
+	}))
 }
 
 // Reset puts the demo boards back to the seed, keeping the accounts and
@@ -88,7 +88,7 @@ func (a *App) Seed(ctx context.Context, adminEmail, adminPassword string) error 
 // pages simply get the next frame. It returns the boards to refresh.
 func (a *App) Reset(ctx context.Context) ([]int64, error) {
 	var boards []int64
-	err := a.DB.W.Do(ctx, func(tx *db.Tx) error {
+	err := a.DB.W.Do(ctx, writer.Func(func(tx *writer.Tx) error {
 		var maxVersion int64
 		if err := tx.QueryRow(`SELECT coalesce(max(version), 0) FROM boards`).Scan(&maxVersion); err != nil {
 			return err
@@ -117,18 +117,18 @@ func (a *App) Reset(ctx context.Context) ([]int64, error) {
 			return err
 		}
 		for _, b := range boards {
-			if _, err := tx.Touch(b); err != nil {
+			if err := touch(tx, b); err != nil {
 				return err
 			}
 		}
 		return nil
-	})
+	}))
 	return boards, err
 }
 
 var seedTime = time.Date(2026, 9, 1, 9, 0, 0, 0, time.UTC).Unix()
 
-func seedBoards(tx *db.Tx, ids []int64, version int64) ([]int64, error) {
+func seedBoards(tx *writer.Tx, ids []int64, version int64) ([]int64, error) {
 	rng := rand.New(rand.NewPCG(42, 7))
 	base := seedTime
 	var project int64
