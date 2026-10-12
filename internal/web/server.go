@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/andybalholm/brotli"
-	"github.com/zweiundeins/lith/writer"
+	lithlive "github.com/zweiundeins/lith/live"
 
 	"kanban/internal/app"
 	"kanban/internal/live"
@@ -34,16 +34,15 @@ import (
 // Server holds everything the handlers need.
 type Server struct {
 	App      *app.App
-	Hub      *live.Hub
+	Hub      *lithlive.Hub
+	Seats    *live.Seats
 	Render   *Renderer
 	Static   *Static
 	Log      *slog.Logger
 	Secure   bool     // cookies only over HTTPS, HSTS
 	Origins  []string // allowed Origin values besides the request's own host
 	Proxied  bool     // trust X-Forwarded-For from loopback
-	LGWin    int      // brotli window of the live streams
 	Actions  int      // actions a user may send per 10 s (0: no limit)
-	Level    int      // brotli quality of the live streams
 	Started  time.Time
 	BuildRef string
 
@@ -112,7 +111,7 @@ func (s *Server) Handler() http.Handler {
 	act("/boards/{b}/cards/{c}/labels/{label}", s.setLabel)
 	act("/boards/{b}/cards/{c}/comments", s.addComment)
 	act("/boards/{b}/comments/{id}/delete", s.deleteComment)
-	// Commands about this tab's view: no database, 204 as well.
+	// Commands about this tab's view: 204 as well.
 	mux.HandleFunc("POST /boards/{b}/open", s.ui(s.openCard))
 	mux.HandleFunc("POST /boards/{b}/toasts/dismiss", s.ui(s.dismissToast))
 
@@ -321,11 +320,9 @@ func (l *limiter) allow(key string) bool {
 func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 	var one int
 	err := s.App.DB.R.QueryRowContext(r.Context(), "SELECT 1").Scan(&one)
-	s.Render.cards.mu.Lock()
-	cards := map[string]int64{"hits": s.Render.cards.hits, "misses": s.Render.cards.miss, "size": int64(len(s.Render.cards.items))}
-	s.Render.cards.mu.Unlock()
 	var ms runtime.MemStats
 	runtime.ReadMemStats(&ms)
+	ws, ls, cards := s.App.DB.W.Stats(), s.Hub.Stats(), s.Render.cards.Stats()
 	body := map[string]any{
 		"ok":         err == nil,
 		"memory":     map[string]uint64{"heap_alloc": ms.HeapAlloc, "heap_sys": ms.HeapSys, "sys": ms.Sys, "gc_cycles": uint64(ms.NumGC), "total_alloc": ms.TotalAlloc},
@@ -333,9 +330,16 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 		"goroutines": runtime.NumGoroutine(),
 		"build":      s.BuildRef,
 		"uptime_s":   int(time.Since(s.Started).Seconds()),
-		"writer":     writerStats(s.App.DB.W.Stats()),
-		"live":       s.Hub.Stats(),
-		"card_cache": cards,
+		"writer": map[string]any{
+			"commands": ws.Commands, "batches": ws.Batches, "failed": ws.Failures, "max_batch": ws.MaxBatch,
+			"queue_depth": ws.Queue, "commit_nanos": ws.Busy.Nanoseconds(), "p99_commit_ms": float64(ws.P99Commit.Microseconds()) / 1000,
+		},
+		"live": map[string]any{
+			"streams": ls.Streams, "views": ls.Views, "ticks": ls.Ticks, "view_renders": ls.Renders, "overruns": ls.Overruns,
+			"renders": s.Render.renders.Load(), "render_nanos": s.Render.renderNanos.Load(),
+			"frames_sent": ls.FramesSent, "frames_skipped": ls.FramesDropped,
+		},
+		"card_cache": map[string]any{"hits": cards.Hits, "misses": cards.Misses, "entries": cards.Entries, "bytes": cards.Bytes},
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
@@ -343,14 +347,6 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 	json.NewEncoder(w).Encode(body)
-}
-
-// writerStats are the writer's counters under the names the load test reads.
-func writerStats(ws writer.Stats) map[string]any {
-	return map[string]any{
-		"commands": ws.Commands, "batches": ws.Batches, "failed": ws.Failures, "max_batch": ws.MaxBatch,
-		"queue_depth": ws.Queue, "commit_nanos": ws.Busy.Nanoseconds(), "p99_commit_ms": float64(ws.P99Commit.Microseconds()) / 1000,
-	}
 }
 
 func pathID(r *http.Request, name string) int64 {

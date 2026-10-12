@@ -3,6 +3,7 @@ package web
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"path/filepath"
 	"testing"
 
@@ -10,6 +11,7 @@ import (
 
 	"kanban/internal/app"
 	"kanban/internal/db"
+	"kanban/internal/live"
 )
 
 func bigBoard(tb testing.TB) (*app.App, *Renderer) {
@@ -23,7 +25,20 @@ func bigBoard(tb testing.TB) (*app.App, *Renderer) {
 	if err := a.Seed(context.Background(), "", ""); err != nil {
 		tb.Fatal(err)
 	}
-	return a, NewRenderer(a)
+	return a, NewRenderer()
+}
+
+func frame(tb testing.TB, a *app.App, r *Renderer, board int64, open map[int64][]int64) *live.Board {
+	tb.Helper()
+	var f *live.Board
+	err := a.DB.View(context.Background(), func(tx *sql.Tx) (err error) {
+		f, err = r.Board(context.Background(), tx, board, open)
+		return err
+	})
+	if err != nil {
+		tb.Fatal(err)
+	}
+	return f
 }
 
 // A frame of the 200-card board after one move: rendered from the cache,
@@ -31,55 +46,44 @@ func bigBoard(tb testing.TB) (*app.App, *Renderer) {
 func TestFrameAfterAMove(t *testing.T) {
 	a, r := bigBoard(t)
 	ctx := context.Background()
-	f1, err := r.Frame(ctx, 2, nil, []int64{1})
-	if err != nil {
-		t.Fatal(err)
-	}
+	f1 := frame(t, a, r, 2, nil)
 	b, _ := a.LoadBoard(ctx, 2)
 	c := b.Lists[0].Cards[0]
 	if out, err := a.MoveCard(ctx, app.Actor{User: 1}, 2, app.Move{Card: c.ID, List: b.Lists[3].ID, Seen: c.MoveVersion}); err != nil || !out.OK {
 		t.Fatalf("move: %+v %v", out, err)
 	}
-	r.cards.mu.Lock()
-	missBefore := r.cards.miss
-	r.cards.mu.Unlock()
-	f2, err := r.Frame(ctx, 2, nil, []int64{1})
-	if err != nil {
-		t.Fatal(err)
-	}
-	r.cards.mu.Lock()
-	rendered := r.cards.miss - missBefore
-	r.cards.mu.Unlock()
-	if rendered > 1 {
+	missBefore := r.cards.Stats().Misses
+	f2 := frame(t, a, r, 2, nil)
+	if rendered := r.cards.Stats().Misses - missBefore; rendered > 1 {
 		t.Fatalf("%d cards rendered again after one move", rendered)
+	}
+	if f2.Version != f1.Version+1 {
+		t.Fatalf("versions %d, %d", f1.Version, f2.Version)
 	}
 
 	changed := 0
-	for i, c := range f2.Board.Children {
-		if !bytes.Equal(c.HTML, f1.Board.Children[i].HTML) {
+	for i, c := range f2.Lanes.Children {
+		if !bytes.Equal(c.HTML, f1.Lanes.Children[i].HTML) {
 			changed++
 		}
 	}
 	if changed != 2 {
 		t.Fatalf("%d lanes changed after a move between two lanes", changed)
 	}
-	full := f2.Board.Full()
+	full := f2.Lanes.Full()
 	var wire bytes.Buffer
 	w := brotli.NewWriterOptions(&wire, brotli.WriterOptions{Quality: 4, LGWin: 18})
-	w.Write(f1.Board.Full())
+	w.Write(f1.Lanes.Full())
 	w.Flush()
 	t.Logf("board HTML %d bytes, %d on the wire at first", len(full), wire.Len())
 }
 
-func BenchmarkFrame(b *testing.B) {
-	_, r := bigBoard(b)
-	ctx := context.Background()
-	r.Frame(ctx, 2, nil, nil) // warm the cache
+func BenchmarkBoardFrame(b *testing.B) {
+	a, r := bigBoard(b)
+	frame(b, a, r, 2, nil) // warm the cache
 	open := map[int64][]int64{1: {1}, 2: {2}}
 	b.ResetTimer()
 	for b.Loop() {
-		if _, err := r.Frame(ctx, 2, open, []int64{1, 2}); err != nil {
-			b.Fatal(err)
-		}
+		frame(b, a, r, 2, open)
 	}
 }

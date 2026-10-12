@@ -15,15 +15,16 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"runtime/debug"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
+
+	lithlive "github.com/zweiundeins/lith/live"
+	"github.com/zweiundeins/lith/sse"
 
 	"kanban/internal/app"
 	"kanban/internal/db"
@@ -36,7 +37,7 @@ type config struct {
 	addr, dbPath, sync, origins, adminEmail, adminPassword, resetAt, to, static string
 	secure, proxied, debug                                                      bool
 	throttle                                                                    time.Duration
-	lgwin, level, actions, slots                                                int
+	lgwin, level, actions                                                       int
 }
 
 func main() {
@@ -57,12 +58,11 @@ func main() {
 	fsf.BoolVar(&c.proxied, "proxied", env("KANBAN_PROXIED", "") == "1", "trust X-Forwarded-For from loopback")
 	fsf.BoolVar(&c.debug, "debug", env("KANBAN_DEBUG", "") == "1", "debug logging")
 	fsf.DurationVar(&c.throttle, "throttle", 50*time.Millisecond, "minimum time between two renders of a board")
+	// Browsers that accept zstd get it, the others brotli. On the 200-card
+	// board with 200 busy streams, brotli quality 3 sends 1.9 kB a frame
+	// (0.7 GB RSS), 4 sends 1.0 kB (0.95 GB), 5 sends 0.7 kB (1.2 GB).
 	fsf.IntVar(&c.lgwin, "brotli-lgwin", 18, "brotli window of the live streams (log2 bytes, 10 to 24)")
-	// A stream's compressor costs memory as long as the stream is open. On
-	// the 200-card board with 200 busy streams: quality 3 sends 1.9 kB a
-	// frame (0.7 GB RSS), 4 sends 1.0 kB (0.95 GB), 5 sends 0.7 kB (1.2 GB).
-	fsf.IntVar(&c.level, "brotli-level", 4, "brotli quality of the live streams (0 to 11)")
-	fsf.IntVar(&c.slots, "send-slots", 0, "streams that may send a frame at once (0: half the CPUs)")
+	fsf.IntVar(&c.level, "brotli-level", 4, "brotli quality of the live streams (1 to 11)")
 	fsf.IntVar(&c.actions, "action-limit", 300, "actions one user may send per 10 s (0: no limit, for load tests)")
 	fsf.StringVar(&c.resetAt, "reset-at", env("KANBAN_RESET_AT", ""), "serve: put the demo boards back to the seed every day at HH:MM UTC (a public demo)")
 	fsf.StringVar(&c.to, "to", "", "backup: the file to write")
@@ -144,19 +144,6 @@ func export(c config) error {
 	return enc.Encode(out)
 }
 
-// boardsOf reads the boards that commits touched from their topics.
-func boardsOf(topics []string) []int64 {
-	var boards []int64
-	for _, t := range topics {
-		if id, ok := strings.CutPrefix(t, "board:"); ok {
-			if b, err := strconv.ParseInt(id, 10, 64); err == nil {
-				boards = append(boards, b)
-			}
-		}
-	}
-	return boards
-}
-
 func buildRef() string {
 	if bi, ok := debug.ReadBuildInfo(); ok {
 		for _, s := range bi.Settings {
@@ -172,19 +159,24 @@ func serve(c config, log *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	hub := live.NewHub(nil)
-	hub.Throttle = c.throttle
-	if c.slots > 0 {
-		hub.Slots = make(chan struct{}, c.slots)
-	}
-	hub.Log = log
-	d, err := db.Open(ctx, c.dbPath, db.Options{Synchronous: c.sync, Log: log, OnCommit: func(topics []string) { hub.Changed(boardsOf(topics)...) }})
+	// The writer tells the hub what each commit changed; the hub reads
+	// from the database's pool. No command is sent before hub is set.
+	var hub *lithlive.Hub
+	d, err := db.Open(ctx, c.dbPath, db.Options{Synchronous: c.sync, Log: log, OnCommit: func(topics []string) { hub.Changed(topics) }})
 	if err != nil {
 		return err
 	}
+	hub = lithlive.New(lithlive.Options{
+		Read: d.R,
+		Tick: c.throttle,
+		Log:  log,
+		SSE:  sse.Options{BrotliQuality: c.level, BrotliWindow: c.lgwin},
+	})
+	hubCtx, stopStreams := context.WithCancel(context.Background())
+	defer stopStreams()
+	hubDone := make(chan error, 1)
+	go func() { hubDone <- hub.Run(hubCtx) }()
 	a := &app.App{DB: d}
-	r := web.NewRenderer(a)
-	hub.Render = r.Frame
 
 	sub, err := fs.Sub(webfiles.FS, "static")
 	if err != nil {
@@ -204,26 +196,20 @@ func serve(c config, log *slog.Logger) error {
 		}
 	}
 	s := &web.Server{
-		App: a, Hub: hub, Render: r, Static: static, Log: log,
-		Secure: c.secure, Origins: origins, Proxied: c.proxied,
-		LGWin: c.lgwin, Level: c.level, Actions: c.actions, Started: time.Now(), BuildRef: buildRef(),
+		App: a, Hub: hub, Seats: live.NewSeats(hub.Changed, 3*time.Second), Render: web.NewRenderer(), Static: static, Log: log,
+		Secure: c.secure, Origins: origins, Proxied: c.proxied, Actions: c.actions, Started: time.Now(), BuildRef: buildRef(),
 	}
-
-	// Streams run until the server stops: their context ends with this one.
-	base, cancelStreams := context.WithCancel(context.Background())
-	defer cancelStreams()
 	srv := &http.Server{
 		Addr:              c.addr,
 		Handler:           s.Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
-		WriteTimeout:      60 * time.Second, // the stream lifts its own deadline
+		WriteTimeout:      60 * time.Second, // a stream sets a deadline for each of its writes
 		IdleTimeout:       120 * time.Second,
-		BaseContext:       func(net.Listener) context.Context { return base },
 		ErrorLog:          slog.NewLogLogger(log.Handler(), slog.LevelWarn),
 	}
 
-	// Housekeeping: forget idle tabs, old op outcomes.
+	// Housekeeping: old messages for tabs, old op outcomes.
 	go func() {
 		tabs := time.NewTicker(time.Minute)
 		ops := time.NewTicker(time.Hour)
@@ -234,7 +220,9 @@ func serve(c config, log *slog.Logger) error {
 			case <-ctx.Done():
 				return
 			case <-tabs.C:
-				hub.Sweep(30 * time.Minute)
+				if err := a.Sweep(ctx); err != nil {
+					log.Warn("sweep tabs", "err", err)
+				}
 			case <-ops.C:
 				if err := a.PruneOps(ctx); err != nil {
 					log.Warn("prune ops", "err", err)
@@ -269,9 +257,6 @@ func serve(c config, log *slog.Logger) error {
 		}()
 	}
 
-	// Compressing the static files at startup leaves tens of MB of garbage.
-	debug.FreeOSMemory()
-
 	errc := make(chan error, 1)
 	go func() {
 		log.Info("listening", "addr", c.addr, "db", c.dbPath, "synchronous", c.sync, "build", s.BuildRef)
@@ -280,6 +265,8 @@ func serve(c config, log *slog.Logger) error {
 	select {
 	case err := <-errc:
 		if !errors.Is(err, http.ErrServerClosed) {
+			stopStreams()
+			<-hubDone
 			d.Close()
 			return err
 		}
@@ -287,7 +274,8 @@ func serve(c config, log *slog.Logger) error {
 	}
 
 	log.Info("shutting down")
-	cancelStreams() // the pages reconnect to the next process and get the whole board
+	stopStreams() // the pages reconnect to the next process and get the whole board
+	<-hubDone
 	sctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(sctx); err != nil {

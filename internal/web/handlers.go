@@ -3,6 +3,7 @@ package web
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"io"
@@ -10,12 +11,10 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/a-h/templ"
 
 	"kanban/internal/app"
-	"kanban/internal/live"
 	"kanban/internal/views"
 )
 
@@ -103,23 +102,25 @@ func (s *Server) boardPage(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r, "There is no such board, or you aren't a member of it.")
 		return
 	}
-	b, err := s.App.LoadBoard(r.Context(), board)
+	var b *app.Board
+	var detail []byte
+	err = s.App.DB.View(r.Context(), func(tx *sql.Tx) error {
+		var err error
+		if b, err = app.ReadBoard(r.Context(), tx, board); err != nil {
+			return err
+		}
+		var viewers []app.User
+		if card != 0 {
+			viewers = []app.User{*u}
+		}
+		detail, err = s.Render.Detail(r.Context(), tx, board, card, viewers)
+		return err
+	})
 	if err != nil {
 		s.fail(w, r, err)
 		return
 	}
-	var viewers []app.User
-	if card != 0 {
-		viewers = []app.User{*u}
-	}
-	detail, err := s.Render.Detail(r.Context(), board, card, viewers)
-	if err != nil {
-		s.fail(w, r, err)
-		return
-	}
-	tab := randomID(16)
-	s.Hub.Tab(tab, u.ID, board, card)
-	present := s.Hub.Present(board)
+	present := s.Seats.Present(board)
 	if !slices.Contains(present, u.ID) {
 		present = append(present, u.ID)
 	}
@@ -127,68 +128,11 @@ func (s *Server) boardPage(w http.ResponseWriter, r *http.Request) {
 	p.Modules = boardModules
 	p.Class = "board-page"
 	s.html(w, r, http.StatusOK, views.BoardPage(views.BoardShell{
-		Page: p, Board: b, Tab: tab, Open: card,
-		Presence: s.Render.Presence(b, present),
+		Page: p, Board: b, Tab: randomID(16), Open: card,
+		Presence: s.Render.Presence(b.Members, present),
 		Lanes:    renderBytes(views.Board(b, s.Render.Lanes(b).Full())),
 		Detail:   detail,
 	}))
-}
-
-// sink sends the hub's patches over a Datastar stream. Its first frame
-// also tells the page it is live again.
-type sink struct {
-	es    *eventStream
-	live  bool
-	pings int
-}
-
-var online = live.Signals([]byte(`{"_offline":false}`))
-
-func (k *sink) Send(e *live.Event) error {
-	if err := k.es.write(e.Wire()); err != nil {
-		return err
-	}
-	if !k.live && !e.IsSignals() {
-		k.live = true
-		return k.es.write(online.Wire())
-	}
-	return nil
-}
-
-// Ping keeps proxies from closing a quiet stream, and the page's watchdog
-// from replacing it (the page stamps each ping with its own clock).
-func (k *sink) Ping() error {
-	k.pings++
-	return k.es.write(live.Signals([]byte(`{"_ping":` + strconv.Itoa(k.pings) + `}`)).Wire())
-}
-
-// stream is the page's live view: the whole board after every change.
-func (s *Server) stream(w http.ResponseWriter, r *http.Request) {
-	u := userOf(r)
-	if u == nil {
-		http.Error(w, "Log in again.", http.StatusUnauthorized)
-		return
-	}
-	board := pathID(r, "b")
-	tabID := r.URL.Query().Get("tab")
-	if !tabRe.MatchString(tabID) {
-		http.Error(w, "Bad tab.", http.StatusBadRequest)
-		return
-	}
-	if ok, err := s.App.IsMember(r.Context(), board, u.ID); err != nil || !ok {
-		http.Error(w, "Not a member of this board.", http.StatusForbidden)
-		return
-	}
-	t := s.Hub.Tab(tabID, u.ID, board, 0)
-	_ = http.NewResponseController(w).SetWriteDeadline(time.Time{})
-	es, err := openEventStream(w, r, s.Level, s.LGWin)
-	if err != nil {
-		return
-	}
-	defer es.close()
-	if err := s.Hub.Serve(r.Context(), t, &sink{es: es}, 20*time.Second); err != nil && r.Context().Err() == nil {
-		s.Log.Debug("stream ended", "board", board, "err", err)
-	}
 }
 
 // flexInt reads a number sent as a number or as a string ("" is 0).
@@ -226,9 +170,9 @@ type payload struct {
 	Done    bool    `json:"done"`
 }
 
-// actionFunc runs one command; clear names the page's input signals to
-// empty once it succeeded.
-type actionFunc func(ctx context.Context, r *http.Request, a app.Actor, board int64, p payload) (out app.Outcome, clear map[string]any, err error)
+// actionFunc runs one command. It sets a.Clear to the page's input signals
+// to empty once the command succeeded.
+type actionFunc func(ctx context.Context, r *http.Request, a app.Actor, board int64, p payload) (app.Outcome, error)
 
 func (s *Server) readPayload(w http.ResponseWriter, r *http.Request) (*app.User, int64, payload, bool) {
 	var p payload
@@ -258,42 +202,21 @@ func (s *Server) readPayload(w http.ResponseWriter, r *http.Request) (*app.User,
 	return u, board, p, true
 }
 
-// toast is one message in a tab's sb-toast region; the list is the tab's
-// server-owned UI state.
-type toast struct {
-	ID      string `json:"id"`
-	Variant string `json:"variant"`
-	Title   string `json:"title,omitempty"`
-	Text    string `json:"text"`
-}
-
-type tabUI struct {
-	toasts []toast
-	n      int
-}
-
-func toastsOf(t *live.Tab) *tabUI {
-	ui, _ := t.State.(*tabUI)
-	if ui == nil {
-		ui = &tabUI{}
-		t.State = ui
-	}
-	return ui
-}
-
 func renderBytes(c templ.Component) []byte {
 	var b bytes.Buffer
 	_ = c.Render(context.Background(), &b)
 	return b.Bytes()
 }
 
+// action answers 204 once the command committed: its outcome reaches the
+// page on its stream, written by the command into the tab's outbox.
 func (s *Server) action(do actionFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		u, board, p, ok := s.readPayload(w, r)
 		if !ok {
 			return
 		}
-		out, clear, err := do(r.Context(), r, app.Actor{User: u.ID, Op: p.Op}, board, p)
+		_, err := do(r.Context(), r, app.Actor{User: u.ID, Op: p.Op, Tab: p.Tab}, board, p)
 		if errors.Is(err, errBadRequest) {
 			http.Error(w, "Bad request.", http.StatusBadRequest)
 			return
@@ -302,41 +225,12 @@ func (s *Server) action(do actionFunc) http.HandlerFunc {
 			s.fail(w, r, err)
 			return
 		}
-		t := s.Hub.Tab(p.Tab, u.ID, board, 0)
-		acks := map[string]any{}
-		if p.Op != "" {
-			result := "ok"
-			if !out.OK {
-				result = out.Msg
-			}
-			acks["_acks"] = map[string]string{p.Op: result}
-		}
-		html := renderBytes(views.Status(out.Notice))
-		if out.OK {
-			for k, v := range clear {
-				acks[k] = v
-			}
-		} else {
-			html = renderBytes(views.Status(out.Msg))
-			t.Lock()
-			ui := toastsOf(t)
-			ui.n++
-			ui.toasts = append(ui.toasts, toast{ID: "t" + strconv.Itoa(ui.n), Variant: "warn", Title: "Not saved", Text: out.Msg})
-			if len(ui.toasts) > 6 {
-				ui.toasts = ui.toasts[len(ui.toasts)-6:]
-			}
-			js, _ := json.Marshal(ui.toasts)
-			t.Unlock()
-			html = append(html, renderBytes(views.Toasts(board, string(js)))...)
-		}
-		sig, _ := json.Marshal(acks)
-		s.Hub.Send(t, live.Msg{After: out.Version, Signals: sig, HTML: html})
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
 
 // ui handles a command about the tab's own view.
-func (s *Server) ui(do func(t *live.Tab, board int64, p payload) error) http.HandlerFunc {
+func (s *Server) ui(do func(ctx context.Context, u *app.User, board int64, p payload) error) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		u, board, p, ok := s.readPayload(w, r)
 		if !ok {
@@ -346,112 +240,100 @@ func (s *Server) ui(do func(t *live.Tab, board int64, p payload) error) http.Han
 			http.Error(w, "Not a member of this board.", http.StatusForbidden)
 			return
 		}
-		if err := do(s.Hub.Tab(p.Tab, u.ID, board, 0), board, p); err != nil {
+		if err := do(r.Context(), u, board, p); errors.Is(err, errBadRequest) {
 			http.Error(w, "Bad request.", http.StatusBadRequest)
+			return
+		} else if err != nil {
+			s.fail(w, r, err)
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
 
-func (s *Server) openCard(t *live.Tab, board int64, p payload) error {
+// openCard shows a card in the tab's dialog. Which card a tab shows lives
+// with its stream: without one, the page sends it when it connects.
+func (s *Server) openCard(_ context.Context, u *app.User, board int64, p payload) error {
 	if p.Card < 0 {
 		return errBadRequest
 	}
-	s.Hub.SetOpen(t, int64(p.Card))
+	s.Seats.Open(u.ID, p.Tab, int64(p.Card))
 	return nil
 }
 
-func (s *Server) dismissToast(t *live.Tab, board int64, p payload) error {
-	t.Lock()
-	ui := toastsOf(t)
-	ui.toasts = slices.DeleteFunc(ui.toasts, func(x toast) bool { return x.ID == p.ID })
-	js, _ := json.Marshal(ui.toasts)
-	t.Unlock()
-	s.Hub.Send(t, live.Msg{HTML: renderBytes(views.Toasts(board, string(js)))})
-	return nil
+func (s *Server) dismissToast(ctx context.Context, u *app.User, board int64, p payload) error {
+	return s.App.DismissToast(ctx, u.ID, board, p.Tab, p.ID)
 }
 
 // The actions.
 
-func (s *Server) createList(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, map[string]any, error) {
-	out, err := s.App.CreateList(ctx, a, b, p.Name)
-	return out, map[string]any{"_in": map[string]any{"list": ""}}, err
+func (s *Server) createList(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, error) {
+	a.Clear = map[string]any{"_in": map[string]any{"list": ""}}
+	return s.App.CreateList(ctx, a, b, p.Name)
 }
 
-func (s *Server) renameList(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, map[string]any, error) {
-	out, err := s.App.RenameList(ctx, a, b, pathID(r, "l"), p.Name)
-	return out, nil, err
+func (s *Server) renameList(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, error) {
+	return s.App.RenameList(ctx, a, b, pathID(r, "l"), p.Name)
 }
 
-func (s *Server) moveList(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, map[string]any, error) {
+func (s *Server) moveList(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, error) {
 	seen := int64(-1)
 	if p.HasSeen {
 		seen = int64(p.Seen)
 	}
-	out, err := s.App.MoveList(ctx, a, b, pathID(r, "l"), int64(p.Before), seen)
-	return out, nil, err
+	return s.App.MoveList(ctx, a, b, pathID(r, "l"), int64(p.Before), seen)
 }
 
-func (s *Server) archiveList(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, map[string]any, error) {
-	out, err := s.App.ArchiveList(ctx, a, b, pathID(r, "l"))
-	return out, nil, err
+func (s *Server) archiveList(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, error) {
+	return s.App.ArchiveList(ctx, a, b, pathID(r, "l"))
 }
 
-func (s *Server) createCard(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, map[string]any, error) {
-	out, err := s.App.CreateCard(ctx, a, b, int64(p.List), p.Title)
-	return out, map[string]any{"_in": map[string]any{"l" + itoa(int64(p.List)): ""}}, err
+func (s *Server) createCard(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, error) {
+	a.Clear = map[string]any{"_in": map[string]any{"l" + itoa(int64(p.List)): ""}}
+	return s.App.CreateCard(ctx, a, b, int64(p.List), p.Title)
 }
 
-func (s *Server) moveCard(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, map[string]any, error) {
-	out, err := s.App.MoveCard(ctx, a, b, app.Move{Card: pathID(r, "c"), List: int64(p.Col), Before: int64(p.Before), Seen: int64(p.Seen)})
-	return out, nil, err
+func (s *Server) moveCard(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, error) {
+	return s.App.MoveCard(ctx, a, b, app.Move{Card: pathID(r, "c"), List: int64(p.Col), Before: int64(p.Before), Seen: int64(p.Seen)})
 }
 
-func (s *Server) renameCard(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, map[string]any, error) {
-	out, err := s.App.RenameCard(ctx, a, b, pathID(r, "c"), p.Title)
-	return out, nil, err
+func (s *Server) renameCard(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, error) {
+	return s.App.RenameCard(ctx, a, b, pathID(r, "c"), p.Title)
 }
 
-func (s *Server) archiveCard(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, map[string]any, error) {
-	out, err := s.App.ArchiveCard(ctx, a, b, pathID(r, "c"))
-	return out, nil, err
+func (s *Server) archiveCard(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, error) {
+	return s.App.ArchiveCard(ctx, a, b, pathID(r, "c"))
 }
 
-func (s *Server) setDescription(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, map[string]any, error) {
-	out, err := s.App.SetDescription(ctx, a, b, pathID(r, "c"), p.Text)
-	return out, nil, err
+func (s *Server) setDescription(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, error) {
+	return s.App.SetDescription(ctx, a, b, pathID(r, "c"), p.Text)
 }
 
-func (s *Server) setDue(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, map[string]any, error) {
-	out, err := s.App.SetDue(ctx, a, b, pathID(r, "c"), p.Day)
-	return out, nil, err
+func (s *Server) setDue(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, error) {
+	return s.App.SetDue(ctx, a, b, pathID(r, "c"), p.Day)
 }
 
-func (s *Server) setDueDone(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, map[string]any, error) {
-	out, err := s.App.SetDueDone(ctx, a, b, pathID(r, "c"), p.Done)
-	return out, nil, err
+func (s *Server) setDueDone(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, error) {
+	return s.App.SetDueDone(ctx, a, b, pathID(r, "c"), p.Done)
 }
 
-func (s *Server) setLabel(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, map[string]any, error) {
-	out, err := s.App.SetLabel(ctx, a, b, pathID(r, "c"), pathID(r, "label"), p.On)
-	return out, nil, err
+func (s *Server) setLabel(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, error) {
+	return s.App.SetLabel(ctx, a, b, pathID(r, "c"), pathID(r, "label"), p.On)
 }
 
-func (s *Server) createLabel(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, map[string]any, error) {
-	out, err := s.App.CreateLabel(ctx, a, b, pathID(r, "c"), p.Name, p.Color)
-	return out, map[string]any{"_in": map[string]any{"ln": ""}}, err
+func (s *Server) createLabel(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, error) {
+	a.Clear = map[string]any{"_in": map[string]any{"ln": ""}}
+	return s.App.CreateLabel(ctx, a, b, pathID(r, "c"), p.Name, p.Color)
 }
 
-func (s *Server) addComment(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, map[string]any, error) {
+func (s *Server) addComment(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, error) {
 	c := pathID(r, "c")
-	out, err := s.App.AddComment(ctx, a, b, c, p.Body)
-	return out, map[string]any{"_in": map[string]any{"c" + itoa(c): ""}}, err
+	a.Clear = map[string]any{"_in": map[string]any{"c" + itoa(c): ""}}
+	return s.App.AddComment(ctx, a, b, c, p.Body)
 }
 
-func (s *Server) deleteComment(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, map[string]any, error) {
-	out, err := s.App.DeleteComment(ctx, a, b, pathID(r, "id"))
-	return out, nil, err
+func (s *Server) deleteComment(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, error) {
+	return s.App.DeleteComment(ctx, a, b, pathID(r, "id"))
 }
 
 // Login and logout are plain forms: they work before there is a stream.

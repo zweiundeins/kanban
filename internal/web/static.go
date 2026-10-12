@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"path"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/andybalholm/brotli"
@@ -86,6 +87,22 @@ func NewStatic(fsys fs.FS) (*Static, error) {
 
 func accepts(r *http.Request, enc string) bool {
 	return acceptsEncoding(r.Header.Get("Accept-Encoding"), enc)
+}
+
+// acceptsEncoding reads an Accept-Encoding header: enc is listed without q=0.
+func acceptsEncoding(accept, enc string) bool {
+	for part := range strings.SplitSeq(accept, ",") {
+		name, params, _ := strings.Cut(part, ";")
+		if !strings.EqualFold(strings.TrimSpace(name), enc) {
+			continue
+		}
+		if v, found := strings.CutPrefix(strings.ReplaceAll(params, " ", ""), "q="); found {
+			q, err := strconv.ParseFloat(v, 64)
+			return err == nil && q > 0
+		}
+		return true
+	}
+	return false
 }
 
 // ServeHTTP serves /s/{hash}/{path...}.

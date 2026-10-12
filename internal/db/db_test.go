@@ -35,12 +35,12 @@ func seedBoard(t *testing.T, d *DB) {
 func TestOpenMigrates(t *testing.T) {
 	d := open(t)
 	var version, tables int
-	if err := d.R.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version < 1 {
+	if err := d.R.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version < 2 {
 		t.Fatalf("user_version %d, %v", version, err)
 	}
-	err := d.R.QueryRow("SELECT count(*) FROM sqlite_schema WHERE type = 'table' AND name IN ('boards', 'ops')").Scan(&tables)
-	if err != nil || tables != 2 {
-		t.Fatalf("%d of 2 tables, %v", tables, err)
+	err := d.R.QueryRow("SELECT count(*) FROM sqlite_schema WHERE type = 'table' AND name IN ('boards', 'ops', 'tab_outbox', 'tab_state')").Scan(&tables)
+	if err != nil || tables != 4 {
+		t.Fatalf("%d of 4 tables, %v", tables, err)
 	}
 }
 

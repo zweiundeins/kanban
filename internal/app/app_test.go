@@ -2,17 +2,24 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
+	"time"
+
+	"github.com/zweiundeins/lith/writer"
 
 	"kanban/internal/db"
 )
 
-func newApp(t *testing.T) *App {
+func newApp(t *testing.T) *App { return newAppWith(t, nil) }
+
+func newAppWith(t *testing.T, onCommit func([]string)) *App {
 	t.Helper()
-	d, err := db.Open(context.Background(), filepath.Join(t.TempDir(), "app.db"), db.Options{Synchronous: "NORMAL"})
+	d, err := db.Open(context.Background(), filepath.Join(t.TempDir(), "app.db"), db.Options{Synchronous: "NORMAL", OnCommit: onCommit})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -251,5 +258,159 @@ func TestMoveListRefusesStale(t *testing.T) {
 	out, _ = a.MoveList(ctx, Actor{User: 2, Op: "l3"}, 1, doing.ID, b.Lists[0].ID, cur.Lists[len(cur.Lists)-1].MoveVersion)
 	if out.OK {
 		t.Fatalf("before an archived list: %+v", out)
+	}
+}
+
+// topics records what the commits touched.
+type topics struct {
+	mu   sync.Mutex
+	seen []string
+}
+
+func (r *topics) add(ts []string) {
+	r.mu.Lock()
+	r.seen = append(r.seen, ts...)
+	r.mu.Unlock()
+}
+
+func (r *topics) has(t string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return slices.Contains(r.seen, t)
+}
+
+type message struct {
+	ID, After     int64
+	Signals       string
+	Status, Toast *string
+}
+
+func outbox(t *testing.T, a *App, tab string) []message {
+	t.Helper()
+	rows, err := a.DB.R.Query(`SELECT id, after, signals, status, toasts FROM tab_outbox WHERE tab = ? ORDER BY id`, tab)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var out []message
+	for rows.Next() {
+		var m message
+		if err := rows.Scan(&m.ID, &m.After, &m.Signals, &m.Status, &m.Toast); err != nil {
+			t.Fatal(err)
+		}
+		out = append(out, m)
+	}
+	return out
+}
+
+// A command that changes a board bumps its version and touches its topic;
+// the outcome goes to the actor's tab in the same command.
+func TestOutcomeQueuedForTheTab(t *testing.T) {
+	var seen topics
+	a := newAppWith(t, seen.add)
+	ctx := context.Background()
+	b := small(t, a)
+	const tab = "tab-of-anna-0000001"
+	anna := Actor{User: 1, Op: "c1", Tab: tab, Clear: map[string]any{"_in": map[string]any{"l1": ""}}}
+	out, err := a.CreateCard(ctx, anna, 1, b.Lists[0].ID, "Queued card")
+	if err != nil || !out.OK || out.Version != b.Version+1 {
+		t.Fatalf("create: %+v %v (board was at %d)", out, err, b.Version)
+	}
+	if !seen.has("board:1") || !seen.has(TabTopic(1, tab)) {
+		t.Fatalf("topics %v", seen.seen)
+	}
+	msgs := outbox(t, a, tab)
+	if len(msgs) != 1 || msgs[0].After != out.Version || msgs[0].Toast != nil || msgs[0].Status == nil || !strings.Contains(*msgs[0].Status, "Queued card") {
+		t.Fatalf("outbox %+v", msgs)
+	}
+	var sig map[string]any
+	if err := json.Unmarshal([]byte(msgs[0].Signals), &sig); err != nil || sig["_acks"].(map[string]any)["c1"] != "ok" || sig["_in"] == nil {
+		t.Fatalf("signals %s", msgs[0].Signals)
+	}
+
+	// A refusal: the input stays, a toast says why; its replay adds none.
+	bad := Actor{User: 1, Op: "c2", Tab: tab, Clear: anna.Clear}
+	for range 2 {
+		if out, err := a.CreateCard(ctx, bad, 1, b.Lists[0].ID, " "); err != nil || out.OK {
+			t.Fatalf("empty title: %+v %v", out, err)
+		}
+	}
+	msgs = outbox(t, a, tab)
+	if len(msgs) != 3 || msgs[1].Toast == nil || msgs[2].Toast != nil || strings.Contains(msgs[1].Signals, "_in") {
+		t.Fatalf("outbox after a refusal and its replay: %+v", msgs)
+	}
+	var toasts []Toast
+	if err := json.Unmarshal([]byte(*msgs[1].Toast), &toasts); err != nil || len(toasts) != 1 || toasts[0].Variant != "warn" {
+		t.Fatalf("toasts %s", *msgs[1].Toast)
+	}
+
+	if err := a.DismissToast(ctx, 1, 1, tab, toasts[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	msgs = outbox(t, a, tab)
+	if last := msgs[len(msgs)-1]; last.Toast == nil || *last.Toast != "[]" || last.After != 0 || last.Status != nil {
+		t.Fatalf("after dismissing: %+v", last)
+	}
+	// Another user's actions with this tab id don't reach it.
+	if out, _ := a.CreateCard(ctx, Actor{User: 2, Op: "c3", Tab: tab}, 1, b.Lists[0].ID, " "); out.OK {
+		t.Fatal("refusal expected")
+	}
+	if list, _, _ := a.toasts(tab, 1); len(list) != 0 {
+		t.Fatalf("another user's toast in anna's tab: %v", list)
+	}
+}
+
+func (a *App) toasts(tab string, user int64) (list []Toast, n int64, err error) {
+	var js string
+	err = a.DB.R.QueryRow(`SELECT toasts, toast_n FROM tab_state WHERE tab = ? AND user_id = ?`, tab, user).Scan(&js, &n)
+	if err == nil {
+		err = json.Unmarshal([]byte(js), &list)
+	}
+	return list, n, err
+}
+
+// exec runs one statement through the writer.
+func (a *App) exec(ctx context.Context, query string, args ...any) error {
+	return a.DB.W.Do(ctx, writer.Func(func(tx *writer.Tx) error {
+		_, err := tx.Exec(query, args...)
+		return err
+	}))
+}
+
+func TestSweep(t *testing.T) {
+	a := newApp(t)
+	ctx := context.Background()
+	b := small(t, a)
+	for i := range 3 {
+		if _, err := a.CreateCard(ctx, Actor{User: 1, Tab: "sweep-tab-000000001"}, 1, b.Lists[0].ID, "c"+string(rune('a'+i))); err != nil {
+			t.Fatal(err)
+		}
+	}
+	old := time.Now().Add(-11 * time.Minute).Unix()
+	ids := outbox(t, a, "sweep-tab-000000001")
+	if err := a.exec(ctx, `UPDATE tab_outbox SET created_at = ? WHERE id < ?`, old, ids[2].ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.Sweep(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if left := outbox(t, a, "sweep-tab-000000001"); len(left) != 1 || left[0].ID != ids[2].ID {
+		t.Fatalf("left %+v", left)
+	}
+	if err := a.exec(ctx, `UPDATE tab_outbox SET created_at = ?`, old); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.Sweep(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if left := outbox(t, a, "sweep-tab-000000001"); len(left) != 0 {
+		t.Fatalf("left %+v", left)
+	}
+	// Ids never come back: a page that has id 3 must not ignore the next message.
+	if _, err := a.CreateCard(ctx, Actor{User: 1, Tab: "sweep-tab-000000001"}, 1, b.Lists[0].ID, "after"); err != nil {
+		t.Fatal(err)
+	}
+	if next := outbox(t, a, "sweep-tab-000000001"); len(next) != 1 || next[0].ID <= ids[2].ID {
+		t.Fatalf("after the sweep: %+v", next)
 	}
 }

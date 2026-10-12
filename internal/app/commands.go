@@ -33,18 +33,24 @@ type Outcome struct {
 	Replayed bool   `json:"-"`
 }
 
-// Actor is who acts, and the op id their page gave the action.
+// Actor is who acts, the op id their page gave the action, and the page
+// (tab) that gets the outcome.
 type Actor struct {
 	User int64
 	Op   string
+	Tab  string
+	// Clear are signals the page sets once the action succeeded, such as an
+	// input to empty.
+	Clear map[string]any
 }
 
 var opRe = regexp.MustCompile(`^[A-Za-z0-9_-]{1,40}$`)
 
 // act runs fn as one writer command on board for actor: membership is
 // checked, a replayed op gets its first outcome, a rejection is recorded
-// like a success. Only real errors (the database) fail the command. lith's
-// writer.Once would record successes only, and no outcome.
+// like a success, and the outcome is queued for the actor's tab. Only real
+// errors (the database) fail the command. lith's writer.Once would record
+// successes only, and no outcome.
 func (a *App) act(ctx context.Context, actor Actor, board int64, fn func(tx *writer.Tx) (notice string, err error)) (Outcome, error) {
 	if actor.Op != "" && !opRe.MatchString(actor.Op) {
 		return Outcome{}, fmt.Errorf("bad op id")
@@ -57,7 +63,10 @@ func (a *App) act(ctx context.Context, actor Actor, board int64, fn func(tx *wri
 			err := tx.QueryRow(`SELECT result, version FROM ops WHERE user_id = ? AND op = ?`, actor.User, actor.Op).Scan(&result, &out.Version)
 			if err == nil {
 				out.Replayed = true
-				return json.Unmarshal([]byte(result), &out)
+				if err := json.Unmarshal([]byte(result), &out); err != nil {
+					return err
+				}
+				return reply(tx, actor, board, out)
 			}
 			if !errors.Is(err, sql.ErrNoRows) {
 				return err
@@ -95,7 +104,7 @@ func (a *App) act(ctx context.Context, actor Actor, board int64, fn func(tx *wri
 				return err
 			}
 		}
-		return nil
+		return reply(tx, actor, board, out)
 	}))
 	return out, err
 }

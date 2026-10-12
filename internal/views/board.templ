@@ -17,8 +17,10 @@ type BoardShell struct {
 	Detail   []byte
 }
 
+// signalsFor are the page's signals. card and outbox go to the server with
+// the stream's request: a stream that reconnects carries on where the page is.
 func signalsFor(tab string, open int64) string {
-	return `{"_tab":` + js(tab) + `,"_card":` + id(open) + `,"_pend":{},"_acks":{},"_edit":"","_val":"","_in":{},"_net":"","_offline":false,"_beat":0,"_ping":0}`
+	return `{"_tab":` + js(tab) + `,"card":` + id(open) + `,"outbox":0,"_pend":{},"_acks":{},"_edit":"","_val":"","_in":{},"_net":"","_offline":false,"_beat":0,"_ping":0}`
 }
 
 // fetchEvents watches every request. The stream (on this element) going
@@ -53,10 +55,10 @@ func openExpr(board, card int64) string {
 	if card == 0 {
 		path = boardURL(board, "")
 	}
-	return `($_card = ` + id(card) + `, location.pathname !== ` + js(path) + ` && history.pushState(null, '', ` + js(path) + `), ` + UI(boardURL(board, "/open"), "card: "+id(card)) + `)`
+	return `($card = ` + id(card) + `, location.pathname !== ` + js(path) + ` && history.pushState(null, '', ` + js(path) + `), ` + UI(boardURL(board, "/open"), "card: "+id(card)) + `)`
 }
 
-const popstate = `$_card = +(location.pathname.match(/\/cards\/(\d+)/)?.[1] ?? 0), @post(location.pathname.replace(/\/cards\/\d+$/, '') + '/open', {payload: {tab: $_tab, card: $_card}, requestCancellation: 'disabled'})`
+const popstate = `$card = +(location.pathname.match(/\/cards\/(\d+)/)?.[1] ?? 0), @post(location.pathname.replace(/\/cards\/\d+$/, '') + '/open', {payload: {tab: $_tab, card: $card}, requestCancellation: 'disabled'})`
 
 templ BoardPage(s BoardShell) {
 	@Layout(s.Page) {
@@ -165,7 +167,7 @@ func LaneShell(list int64) []byte {
 // openCard opens the card whose id the JS expression idExpr gives.
 func openCard(board int64, idExpr string) string {
 	base := boardURL(board, "")
-	return `($_card = ` + idExpr + `, history.pushState(null, '', ` + js(base+"/cards/") + ` + $_card), @post(` + js(base+"/open") + `, {payload: {tab: $_tab, card: $_card}, requestCancellation: 'disabled'}))`
+	return `($card = ` + idExpr + `, history.pushState(null, '', ` + js(base+"/cards/") + ` + $card), @post(` + js(base+"/open") + `, {payload: {tab: $_tab, card: $card}, requestCancellation: 'disabled'}))`
 }
 
 // A plain click on a card's title opens it here; a click with a modifier

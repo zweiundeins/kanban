@@ -25,8 +25,10 @@ type BoardShell struct {
 	Detail   []byte
 }
 
+// signalsFor are the page's signals. card and outbox go to the server with
+// the stream's request: a stream that reconnects carries on where the page is.
 func signalsFor(tab string, open int64) string {
-	return `{"_tab":` + js(tab) + `,"_card":` + id(open) + `,"_pend":{},"_acks":{},"_edit":"","_val":"","_in":{},"_net":"","_offline":false,"_beat":0,"_ping":0}`
+	return `{"_tab":` + js(tab) + `,"card":` + id(open) + `,"outbox":0,"_pend":{},"_acks":{},"_edit":"","_val":"","_in":{},"_net":"","_offline":false,"_beat":0,"_ping":0}`
 }
 
 // fetchEvents watches every request. The stream (on this element) going
@@ -61,10 +63,10 @@ func openExpr(board, card int64) string {
 	if card == 0 {
 		path = boardURL(board, "")
 	}
-	return `($_card = ` + id(card) + `, location.pathname !== ` + js(path) + ` && history.pushState(null, '', ` + js(path) + `), ` + UI(boardURL(board, "/open"), "card: "+id(card)) + `)`
+	return `($card = ` + id(card) + `, location.pathname !== ` + js(path) + ` && history.pushState(null, '', ` + js(path) + `), ` + UI(boardURL(board, "/open"), "card: "+id(card)) + `)`
 }
 
-const popstate = `$_card = +(location.pathname.match(/\/cards\/(\d+)/)?.[1] ?? 0), @post(location.pathname.replace(/\/cards\/\d+$/, '') + '/open', {payload: {tab: $_tab, card: $_card}, requestCancellation: 'disabled'})`
+const popstate = `$card = +(location.pathname.match(/\/cards\/(\d+)/)?.[1] ?? 0), @post(location.pathname.replace(/\/cards\/\d+$/, '') + '/open', {payload: {tab: $_tab, card: $card}, requestCancellation: 'disabled'})`
 
 func BoardPage(s BoardShell) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
@@ -106,7 +108,7 @@ func BoardPage(s BoardShell) templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(signalsFor(s.Tab, s.Open))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 65, Col: 43}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 67, Col: 43}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 			if templ_7745c5c3_Err != nil {
@@ -119,7 +121,7 @@ func BoardPage(s BoardShell) templ.Component {
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(fetchEvents)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 66, Col: 39}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 68, Col: 39}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 			if templ_7745c5c3_Err != nil {
@@ -132,7 +134,7 @@ func BoardPage(s BoardShell) templ.Component {
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(popstate)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 67, Col: 38}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 69, Col: 38}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 			if templ_7745c5c3_Err != nil {
@@ -171,7 +173,7 @@ func BoardPage(s BoardShell) templ.Component {
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(PendingStyle)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 72, Col: 53}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 74, Col: 53}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 			if templ_7745c5c3_Err != nil {
@@ -184,7 +186,7 @@ func BoardPage(s BoardShell) templ.Component {
 			var templ_7745c5c3_Var8 string
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue("$_beat = Date.now(); " + streamExpr(s.Board.ID, s.Tab))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 74, Col: 92}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 76, Col: 92}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 			if templ_7745c5c3_Err != nil {
@@ -197,7 +199,7 @@ func BoardPage(s BoardShell) templ.Component {
 			var templ_7745c5c3_Var9 string
 			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(watchdog(s.Board.ID, s.Tab))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 74, Col: 155}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 76, Col: 155}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 			if templ_7745c5c3_Err != nil {
@@ -218,7 +220,7 @@ func BoardPage(s BoardShell) templ.Component {
 			var templ_7745c5c3_Var10 string
 			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue("$_in.list?.trim() && (" + ActKey(boardURL(s.Board.ID, "/lists"), "nl", "name: $_in.list") + ")")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 79, Col: 150}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 81, Col: 150}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 			if templ_7745c5c3_Err != nil {
@@ -231,7 +233,7 @@ func BoardPage(s BoardShell) templ.Component {
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(Pending("nl"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 85, Col: 41}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 87, Col: 41}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 			if templ_7745c5c3_Err != nil {
@@ -244,7 +246,7 @@ func BoardPage(s BoardShell) templ.Component {
 			var templ_7745c5c3_Var12 string
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue(Pending("nl"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 86, Col: 41}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 88, Col: 41}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 			if templ_7745c5c3_Err != nil {
@@ -257,7 +259,7 @@ func BoardPage(s BoardShell) templ.Component {
 			var templ_7745c5c3_Var13 string
 			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue(Pending("nl"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 88, Col: 75}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 90, Col: 75}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 			if templ_7745c5c3_Err != nil {
@@ -313,7 +315,7 @@ func crumbs(b *app.Board) templ.Component {
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(b.ProjectName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 103, Col: 45}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 105, Col: 45}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 		if templ_7745c5c3_Err != nil {
@@ -331,7 +333,7 @@ func crumbs(b *app.Board) templ.Component {
 			var templ_7745c5c3_Var16 templ.SafeURL
 			templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(boardURL(s.ID, "")))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 109, Col: 46}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 111, Col: 46}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 			if templ_7745c5c3_Err != nil {
@@ -354,7 +356,7 @@ func crumbs(b *app.Board) templ.Component {
 			var templ_7745c5c3_Var17 string
 			templ_7745c5c3_Var17, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues("view-transition-name: board-" + id(s.ID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 113, Col: 55}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 115, Col: 55}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 			if templ_7745c5c3_Err != nil {
@@ -367,7 +369,7 @@ func crumbs(b *app.Board) templ.Component {
 			var templ_7745c5c3_Var18 string
 			templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(s.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 114, Col: 14}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 116, Col: 14}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 			if templ_7745c5c3_Err != nil {
@@ -414,7 +416,7 @@ func Presence(users []app.User) templ.Component {
 		var templ_7745c5c3_Var20 string
 		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.ResolveAttributeValue(plural(len(users), "person", "people") + " on this board")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 122, Col: 107}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 124, Col: 107}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 		if templ_7745c5c3_Err != nil {
@@ -473,7 +475,7 @@ func Board(b *app.Board, lanes []byte) templ.Component {
 		var templ_7745c5c3_Var22 string
 		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.ResolveAttributeValue(LandingRelease)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 142, Col: 30}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 144, Col: 30}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var22)
 		if templ_7745c5c3_Err != nil {
@@ -486,7 +488,7 @@ func Board(b *app.Board, lanes []byte) templ.Component {
 		var templ_7745c5c3_Var23 string
 		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.ResolveAttributeValue(moveExpr(b.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 143, Col: 41}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 145, Col: 41}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23)
 		if templ_7745c5c3_Err != nil {
@@ -499,7 +501,7 @@ func Board(b *app.Board, lanes []byte) templ.Component {
 		var templ_7745c5c3_Var24 string
 		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.ResolveAttributeValue(laneMoveExpr(b.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 144, Col: 50}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 146, Col: 50}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
 		if templ_7745c5c3_Err != nil {
@@ -512,7 +514,7 @@ func Board(b *app.Board, lanes []byte) templ.Component {
 		var templ_7745c5c3_Var25 string
 		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.ResolveAttributeValue(openOnClick(b.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 145, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 147, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var25)
 		if templ_7745c5c3_Err != nil {
@@ -525,7 +527,7 @@ func Board(b *app.Board, lanes []byte) templ.Component {
 		var templ_7745c5c3_Var26 string
 		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.ResolveAttributeValue(openOnEnter(b.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 146, Col: 37}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 148, Col: 37}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var26)
 		if templ_7745c5c3_Err != nil {
@@ -594,7 +596,7 @@ func LaneShell(list int64) []byte {
 // openCard opens the card whose id the JS expression idExpr gives.
 func openCard(board int64, idExpr string) string {
 	base := boardURL(board, "")
-	return `($_card = ` + idExpr + `, history.pushState(null, '', ` + js(base+"/cards/") + ` + $_card), @post(` + js(base+"/open") + `, {payload: {tab: $_tab, card: $_card}, requestCancellation: 'disabled'}))`
+	return `($card = ` + idExpr + `, history.pushState(null, '', ` + js(base+"/cards/") + ` + $card), @post(` + js(base+"/open") + `, {payload: {tab: $_tab, card: $card}, requestCancellation: 'disabled'}))`
 }
 
 // A plain click on a card's title opens it here; a click with a modifier
@@ -669,7 +671,7 @@ func Lane(b *app.Board, i int, l app.List, card func(app.Card) string) templ.Com
 		var templ_7745c5c3_Var29 string
 		templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.ResolveAttributeValue("list-" + id(l.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 217, Col: 25}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 219, Col: 25}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var29)
 		if templ_7745c5c3_Err != nil {
@@ -682,7 +684,7 @@ func Lane(b *app.Board, i int, l app.List, card func(app.Card) string) templ.Com
 		var templ_7745c5c3_Var30 string
 		templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.ResolveAttributeValue(id(l.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 220, Col: 21}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 222, Col: 21}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var30)
 		if templ_7745c5c3_Err != nil {
@@ -695,7 +697,7 @@ func Lane(b *app.Board, i int, l app.List, card func(app.Card) string) templ.Com
 		var templ_7745c5c3_Var31 string
 		templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.ResolveAttributeValue(id(l.MoveVersion))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 221, Col: 31}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 223, Col: 31}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var31)
 		if templ_7745c5c3_Err != nil {
@@ -708,7 +710,7 @@ func Lane(b *app.Board, i int, l app.List, card func(app.Card) string) templ.Com
 		var templ_7745c5c3_Var32 string
 		templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.ResolveAttributeValue("list-" + id(l.ID) + "-title")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 223, Col: 49}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 225, Col: 49}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var32)
 		if templ_7745c5c3_Err != nil {
@@ -721,7 +723,7 @@ func Lane(b *app.Board, i int, l app.List, card func(app.Card) string) templ.Com
 		var templ_7745c5c3_Var33 string
 		templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.ResolveAttributeValue("Move the list " + l.Name + ": drag it, or hold Alt and press the arrow keys")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 228, Col: 155}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 230, Col: 155}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var33)
 		if templ_7745c5c3_Err != nil {
@@ -742,7 +744,7 @@ func Lane(b *app.Board, i int, l app.List, card func(app.Card) string) templ.Com
 		var templ_7745c5c3_Var34 string
 		templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.ResolveAttributeValue(plural(len(l.Cards), "card", "cards"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 230, Col: 78}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 232, Col: 78}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var34)
 		if templ_7745c5c3_Err != nil {
@@ -755,7 +757,7 @@ func Lane(b *app.Board, i int, l app.List, card func(app.Card) string) templ.Com
 		var templ_7745c5c3_Var35 string
 		templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(id(int64(len(l.Cards))))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 230, Col: 106}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 232, Col: 106}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 		if templ_7745c5c3_Err != nil {
@@ -768,7 +770,7 @@ func Lane(b *app.Board, i int, l app.List, card func(app.Card) string) templ.Com
 		var templ_7745c5c3_Var36 string
 		templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.ResolveAttributeValue("list-" + id(l.ID) + "-menu")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 231, Col: 86}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 233, Col: 86}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var36)
 		if templ_7745c5c3_Err != nil {
@@ -781,7 +783,7 @@ func Lane(b *app.Board, i int, l app.List, card func(app.Card) string) templ.Com
 		var templ_7745c5c3_Var37 string
 		templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.ResolveAttributeValue("Actions for the list " + l.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 231, Col: 134}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 233, Col: 134}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var37)
 		if templ_7745c5c3_Err != nil {
@@ -794,7 +796,7 @@ func Lane(b *app.Board, i int, l app.List, card func(app.Card) string) templ.Com
 		var templ_7745c5c3_Var38 string
 		templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.ResolveAttributeValue("list-" + id(l.ID) + "-menu")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 234, Col: 49}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 236, Col: 49}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var38)
 		if templ_7745c5c3_Err != nil {
@@ -807,7 +809,7 @@ func Lane(b *app.Board, i int, l app.List, card func(app.Card) string) templ.Com
 		var templ_7745c5c3_Var39 string
 		templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.ResolveAttributeValue("Actions for " + l.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 234, Col: 101}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 236, Col: 101}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var39)
 		if templ_7745c5c3_Err != nil {
@@ -840,7 +842,7 @@ func Lane(b *app.Board, i int, l app.List, card func(app.Card) string) templ.Com
 		var templ_7745c5c3_Var40 string
 		templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.ResolveAttributeValue("el.closest('[popover]').hidePopover(); confirm(" + js("Archive the list “"+l.Name+"” and its cards?") + ") && (" + ActKey(boardURL(b.ID, "/lists/"+id(l.ID)+"/archive"), "a"+id(l.ID), "") + ")")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 240, Col: 218}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 242, Col: 218}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var40)
 		if templ_7745c5c3_Err != nil {
@@ -863,7 +865,7 @@ func Lane(b *app.Board, i int, l app.List, card func(app.Card) string) templ.Com
 		var templ_7745c5c3_Var41 string
 		templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.ResolveAttributeValue("$_in.l" + id(l.ID) + "?.trim() && (" + ActKey(boardURL(b.ID, "/cards"), "n"+id(l.ID), "list: "+id(l.ID)+", title: $_in.l"+id(l.ID)) + ")")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 249, Col: 189}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 251, Col: 189}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var41)
 		if templ_7745c5c3_Err != nil {
@@ -876,7 +878,7 @@ func Lane(b *app.Board, i int, l app.List, card func(app.Card) string) templ.Com
 		var templ_7745c5c3_Var42 string
 		templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.ResolveAttributeValue("_in.l" + id(l.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 251, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 253, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var42)
 		if templ_7745c5c3_Err != nil {
@@ -889,7 +891,7 @@ func Lane(b *app.Board, i int, l app.List, card func(app.Card) string) templ.Com
 		var templ_7745c5c3_Var43 string
 		templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.ResolveAttributeValue("Title of a new card in " + l.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 255, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 257, Col: 51}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var43)
 		if templ_7745c5c3_Err != nil {
@@ -902,7 +904,7 @@ func Lane(b *app.Board, i int, l app.List, card func(app.Card) string) templ.Com
 		var templ_7745c5c3_Var44 string
 		templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.ResolveAttributeValue(Pending("n" + id(l.ID)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 256, Col: 48}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 258, Col: 48}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var44)
 		if templ_7745c5c3_Err != nil {
@@ -915,7 +917,7 @@ func Lane(b *app.Board, i int, l app.List, card func(app.Card) string) templ.Com
 		var templ_7745c5c3_Var45 string
 		templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.ResolveAttributeValue(Pending("n" + id(l.ID)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 257, Col: 48}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 259, Col: 48}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var45)
 		if templ_7745c5c3_Err != nil {
@@ -960,7 +962,7 @@ func inlineTitle(key, triggerID, class, value, label, inputLabel, url, field str
 		var templ_7745c5c3_Var47 string
 		templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.ResolveAttributeValue(key)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 269, Col: 23}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 271, Col: 23}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var47)
 		if templ_7745c5c3_Err != nil {
@@ -973,7 +975,7 @@ func inlineTitle(key, triggerID, class, value, label, inputLabel, url, field str
 		var templ_7745c5c3_Var48 string
 		templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.ResolveAttributeValue("$_pend." + key + " = ''; $_val = el.querySelector('[data-inline-edit-value]').textContent; $_edit = " + js(key))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 270, Col: 147}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 272, Col: 147}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var48)
 		if templ_7745c5c3_Err != nil {
@@ -986,7 +988,7 @@ func inlineTitle(key, triggerID, class, value, label, inputLabel, url, field str
 		var templ_7745c5c3_Var49 string
 		templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.ResolveAttributeValue("$_val = evt.detail.value; " + ActKey(url, key, field+": evt.detail.value"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 271, Col: 109}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 273, Col: 109}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var49)
 		if templ_7745c5c3_Err != nil {
@@ -999,7 +1001,7 @@ func inlineTitle(key, triggerID, class, value, label, inputLabel, url, field str
 		var templ_7745c5c3_Var50 string
 		templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.ResolveAttributeValue("$_edit === " + js(key) + " && ($_edit = '')")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 272, Col: 79}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 274, Col: 79}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var50)
 		if templ_7745c5c3_Err != nil {
@@ -1012,7 +1014,7 @@ func inlineTitle(key, triggerID, class, value, label, inputLabel, url, field str
 		var templ_7745c5c3_Var51 string
 		templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.ResolveAttributeValue(Done(key) + " && $_edit === " + js(key) + " && ($_edit = '')")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 273, Col: 77}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 275, Col: 77}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var51)
 		if templ_7745c5c3_Err != nil {
@@ -1034,7 +1036,7 @@ func inlineTitle(key, triggerID, class, value, label, inputLabel, url, field str
 		var templ_7745c5c3_Var53 string
 		templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.ResolveAttributeValue(triggerID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 275, Col: 24}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 277, Col: 24}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var53)
 		if templ_7745c5c3_Err != nil {
@@ -1060,7 +1062,7 @@ func inlineTitle(key, triggerID, class, value, label, inputLabel, url, field str
 		var templ_7745c5c3_Var55 string
 		templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.ResolveAttributeValue("$_edit !== " + js(key))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 275, Col: 117}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 277, Col: 117}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var55)
 		if templ_7745c5c3_Err != nil {
@@ -1073,7 +1075,7 @@ func inlineTitle(key, triggerID, class, value, label, inputLabel, url, field str
 		var templ_7745c5c3_Var56 string
 		templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.ResolveAttributeValue(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 275, Col: 138}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 277, Col: 138}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var56)
 		if templ_7745c5c3_Err != nil {
@@ -1086,7 +1088,7 @@ func inlineTitle(key, triggerID, class, value, label, inputLabel, url, field str
 		var templ_7745c5c3_Var57 string
 		templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinStringErrs(value)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 275, Col: 177}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 277, Col: 177}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
 		if templ_7745c5c3_Err != nil {
@@ -1121,7 +1123,7 @@ func inlineTitle(key, triggerID, class, value, label, inputLabel, url, field str
 		var templ_7745c5c3_Var60 string
 		templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.ResolveAttributeValue("$_edit === " + js(key))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 281, Col: 38}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 283, Col: 38}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var60)
 		if templ_7745c5c3_Err != nil {
@@ -1134,7 +1136,7 @@ func inlineTitle(key, triggerID, class, value, label, inputLabel, url, field str
 		var templ_7745c5c3_Var61 string
 		templ_7745c5c3_Var61, templ_7745c5c3_Err = templ.ResolveAttributeValue(id(int64(max)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 283, Col: 29}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 285, Col: 29}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var61)
 		if templ_7745c5c3_Err != nil {
@@ -1147,7 +1149,7 @@ func inlineTitle(key, triggerID, class, value, label, inputLabel, url, field str
 		var templ_7745c5c3_Var62 string
 		templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.ResolveAttributeValue(inputLabel)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 284, Col: 26}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 286, Col: 26}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var62)
 		if templ_7745c5c3_Err != nil {
@@ -1160,7 +1162,7 @@ func inlineTitle(key, triggerID, class, value, label, inputLabel, url, field str
 		var templ_7745c5c3_Var63 string
 		templ_7745c5c3_Var63, templ_7745c5c3_Err = templ.ResolveAttributeValue(Pending(key))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 285, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 287, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var63)
 		if templ_7745c5c3_Err != nil {
@@ -1173,7 +1175,7 @@ func inlineTitle(key, triggerID, class, value, label, inputLabel, url, field str
 		var templ_7745c5c3_Var64 string
 		templ_7745c5c3_Var64, templ_7745c5c3_Err = templ.ResolveAttributeValue(Pending(key))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 286, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 288, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var64)
 		if templ_7745c5c3_Err != nil {
@@ -1186,7 +1188,7 @@ func inlineTitle(key, triggerID, class, value, label, inputLabel, url, field str
 		var templ_7745c5c3_Var65 string
 		templ_7745c5c3_Var65, templ_7745c5c3_Err = templ.ResolveAttributeValue(Refused(key))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 287, Col: 40}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 289, Col: 40}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var65)
 		if templ_7745c5c3_Err != nil {
@@ -1199,7 +1201,7 @@ func inlineTitle(key, triggerID, class, value, label, inputLabel, url, field str
 		var templ_7745c5c3_Var66 string
 		templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.ResolveAttributeValue("$_edit === " + js(key) + " && requestAnimationFrame(() => document.activeElement !== el && (el.focus(), el.select()))")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 288, Col: 136}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 290, Col: 136}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var66)
 		if templ_7745c5c3_Err != nil {
@@ -1246,7 +1248,7 @@ func Card(board int64, c app.Card, today time.Time) templ.Component {
 		var templ_7745c5c3_Var68 string
 		templ_7745c5c3_Var68, templ_7745c5c3_Err = templ.ResolveAttributeValue("card-" + id(c.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 299, Col: 33}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 301, Col: 33}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var68)
 		if templ_7745c5c3_Err != nil {
@@ -1259,7 +1261,7 @@ func Card(board int64, c app.Card, today time.Time) templ.Component {
 		var templ_7745c5c3_Var69 string
 		templ_7745c5c3_Var69, templ_7745c5c3_Err = templ.ResolveAttributeValue(id(c.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 299, Col: 76}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 301, Col: 76}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var69)
 		if templ_7745c5c3_Err != nil {
@@ -1272,7 +1274,7 @@ func Card(board int64, c app.Card, today time.Time) templ.Component {
 		var templ_7745c5c3_Var70 string
 		templ_7745c5c3_Var70, templ_7745c5c3_Err = templ.ResolveAttributeValue(id(c.MoveVersion))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 299, Col: 108}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 301, Col: 108}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var70)
 		if templ_7745c5c3_Err != nil {
@@ -1285,7 +1287,7 @@ func Card(board int64, c app.Card, today time.Time) templ.Component {
 		var templ_7745c5c3_Var71 string
 		templ_7745c5c3_Var71, templ_7745c5c3_Err = templ.ResolveAttributeValue("card-" + id(c.ID) + "-t")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 299, Col: 167}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 301, Col: 167}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var71)
 		if templ_7745c5c3_Err != nil {
@@ -1326,7 +1328,7 @@ func Card(board int64, c app.Card, today time.Time) templ.Component {
 				var templ_7745c5c3_Var74 string
 				templ_7745c5c3_Var74, templ_7745c5c3_Err = templ.JoinStringErrs(l.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 304, Col: 51}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 306, Col: 51}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var74))
 				if templ_7745c5c3_Err != nil {
@@ -1349,7 +1351,7 @@ func Card(board int64, c app.Card, today time.Time) templ.Component {
 		var templ_7745c5c3_Var75 string
 		templ_7745c5c3_Var75, templ_7745c5c3_Err = templ.ResolveAttributeValue("card-" + id(c.ID) + "-t")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 308, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 310, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var75)
 		if templ_7745c5c3_Err != nil {
@@ -1362,7 +1364,7 @@ func Card(board int64, c app.Card, today time.Time) templ.Component {
 		var templ_7745c5c3_Var76 templ.SafeURL
 		templ_7745c5c3_Var76, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(boardURL(board, "/cards/"+id(c.ID))))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 308, Col: 114}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 310, Col: 114}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var76))
 		if templ_7745c5c3_Err != nil {
@@ -1375,7 +1377,7 @@ func Card(board int64, c app.Card, today time.Time) templ.Component {
 		var templ_7745c5c3_Var77 string
 		templ_7745c5c3_Var77, templ_7745c5c3_Err = templ.JoinStringErrs(c.Title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 308, Col: 148}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 310, Col: 148}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var77))
 		if templ_7745c5c3_Err != nil {
@@ -1417,7 +1419,7 @@ func Card(board int64, c app.Card, today time.Time) templ.Component {
 				var templ_7745c5c3_Var80 string
 				templ_7745c5c3_Var80, templ_7745c5c3_Err = templ.ResolveAttributeValue(d.Full)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 313, Col: 59}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 315, Col: 59}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var80)
 				if templ_7745c5c3_Err != nil {
@@ -1430,7 +1432,7 @@ func Card(board int64, c app.Card, today time.Time) templ.Component {
 				var templ_7745c5c3_Var81 string
 				templ_7745c5c3_Var81, templ_7745c5c3_Err = templ.JoinStringErrs(d.Text)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 313, Col: 103}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 315, Col: 103}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var81))
 				if templ_7745c5c3_Err != nil {
@@ -1455,7 +1457,7 @@ func Card(board int64, c app.Card, today time.Time) templ.Component {
 				var templ_7745c5c3_Var82 string
 				templ_7745c5c3_Var82, templ_7745c5c3_Err = templ.ResolveAttributeValue(plural(c.Comments, "comment", "comments"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 319, Col: 85}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 321, Col: 85}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var82)
 				if templ_7745c5c3_Err != nil {
@@ -1468,7 +1470,7 @@ func Card(board int64, c app.Card, today time.Time) templ.Component {
 				var templ_7745c5c3_Var83 string
 				templ_7745c5c3_Var83, templ_7745c5c3_Err = templ.JoinStringErrs(id(int64(c.Comments)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 319, Col: 111}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 321, Col: 111}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var83))
 				if templ_7745c5c3_Err != nil {
@@ -1481,7 +1483,7 @@ func Card(board int64, c app.Card, today time.Time) templ.Component {
 				var templ_7745c5c3_Var84 string
 				templ_7745c5c3_Var84, templ_7745c5c3_Err = templ.JoinStringErrs(" comments")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 319, Col: 148}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 321, Col: 148}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var84))
 				if templ_7745c5c3_Err != nil {
@@ -1534,7 +1536,7 @@ func Status(text string) templ.Component {
 		var templ_7745c5c3_Var86 string
 		templ_7745c5c3_Var86, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 328, Col: 54}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 330, Col: 54}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var86))
 		if templ_7745c5c3_Err != nil {
@@ -1576,7 +1578,7 @@ func Toasts(board int64, json string) templ.Component {
 		var templ_7745c5c3_Var88 string
 		templ_7745c5c3_Var88, templ_7745c5c3_Err = templ.ResolveAttributeValue(json)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 338, Col: 15}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 340, Col: 15}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var88)
 		if templ_7745c5c3_Err != nil {
@@ -1589,7 +1591,7 @@ func Toasts(board int64, json string) templ.Component {
 		var templ_7745c5c3_Var89 string
 		templ_7745c5c3_Var89, templ_7745c5c3_Err = templ.ResolveAttributeValue(UI(boardURL(board, "/toasts/dismiss"), "id: evt.detail.id"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 339, Col: 82}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/board.templ`, Line: 341, Col: 82}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var89)
 		if templ_7745c5c3_Err != nil {
