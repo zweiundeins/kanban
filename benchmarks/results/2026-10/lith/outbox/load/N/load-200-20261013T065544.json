@@ -1,0 +1,47 @@
+{
+  "confirmed": 0,
+  "duration_s": 30,
+  "encoding": "br",
+  "failed": 0,
+  "frames_per_tab_s": 19.628058189068096,
+  "interval_ms": 250,
+  "moves": 23976,
+  "moves_per_s": 789.6012133239877,
+  "ms_to_204": {
+    "max": 90.16,
+    "p50": 3.406,
+    "p95": 8.01,
+    "p99": 16.322
+  },
+  "ms_to_outcome": {
+    "max": 0,
+    "p50": 0,
+    "p95": 0,
+    "p99": 0
+  },
+  "refused": 0,
+  "server": {
+    "alloc_mb_per_s": 35.6669597115624,
+    "batches": 12341,
+    "cpu_cores": 3.705256516914329,
+    "frames_sent": 119200,
+    "frames_skipped": 0,
+    "gc_cycles": 2,
+    "gomaxprocs": 12,
+    "max_batch": 47,
+    "moves_per_batch": 1.9427923182886313,
+    "ms_per_batch": 2.0679083464873185,
+    "ms_per_render": 2.324164100671141,
+    "ms_queue_wait": 0,
+    "ms_read_wait": 0.09476690909090908,
+    "peak_rss_mb": 851.156992,
+    "read_pool_size": 16,
+    "read_waits": 33,
+    "renders": 596,
+    "writer_busy": 0.7885152916841414
+  },
+  "tabs": 200,
+  "tool_cpu_cores": 2.480679148827209,
+  "unanswered": 23976,
+  "wire_bytes_per_frame": 933.2460570469799
+}

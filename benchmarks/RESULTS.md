@@ -182,3 +182,40 @@ No move failed or went unanswered in any run.
 - **The outcome arrives 4 ms later at the median with brotli** (61 against 57 ms) and 2 ms later at p95. 0.7 ms of it is the 204 and 0.5 ms the board render (3.2 against 2.7 ms); the rest is in the frame path (the tick and the queue for compression slots) and was not broken down further.
 
 In short: the writer alone is as fast as before or faster. At 200 tabs with brotli on both sides, the new server sends fewer bytes, holds less memory and delivers more frames, for 6% more CPU, 4 ms more to the outcome at the median and 7 ms more to the 204 at p95, the latter from the outbox insert. With zstd, which lith gives Chrome, it uses half the CPU and sends three times the bytes, until kanban can pick zstd's level through lith.
+
+### The outbox without its index on the tab
+
+Each move writes its outcome for the tab that sent it into `tab_outbox`. That table had an index on `(tab, id)`, and tab ids are random, so every message dirtied one more page somewhere in the index. Three ways to keep the outbox in SQLite, so that it survives a deploy, were built from the code before this change (the writer benches from 46cba93, the servers from 0602f1e, which differs from it only in the page and a flag) and measured on 2026-10-13 (raw data: `results/2026-10/lith/outbox/`):
+
+- **A**, as before: the index on `(tab, id)`.
+- **B**, no index: a tab's view reads the ids after the newest message it has, starting at the page's position (`outbox`). A page drawn now starts at the newest message of all, since its own tab's messages all come later. A render walks the messages of every tab since its own last one.
+- **C**, a small table with each tab's newest message, and on each message the id of the tab's previous one: a view follows that chain and reads only its own messages, for one more row to update per message.
+
+`BenchmarkMoveCardOutcome` is the writer bench with a tab for each person, so that every move writes its outcome too; "none" is `BenchmarkMoveCard`, the move alone. Three rounds, each run on a quiet host, medians with the lowest and the highest run in brackets. The bytes are what the process wrote to storage (`/proc/self/io`): the WAL and the checkpoints.
+
+| people | KiB written per move: A | B | C | none | moves per second: A | B | C | none |
+|---|---|---|---|---|---|---|---|---|
+| 1 | 111.6 (106.0 to 115.4) | 103.8 (101.6 to 105.4) | 109.3 (104.7 to 111.6) | 100.7 (100.5 to 102.8) | 363 | 529 | 580 | 388 |
+| 50 | 12.9 (12.6 to 13.5) | 7.6 (7.5 to 7.8) | 7.8 (7.6 to 7.9) | 6.9 (6.6 to 7.1) | 5,090 | 7,718 | 8,900 | 6,429 |
+| 200 | 8.8 (7.9 to 9.0) | 2.6 (2.6 to 2.7) | 2.7 (2.7 to 2.7) | 2.2 (2.2 to 2.3) | 10,580 | 15,380 | 16,430 | 18,760 |
+
+Without the index an outcome costs 0.4 KiB per move at 200 people instead of 6.6, and 0.7 instead of 6.0 at 50. C saves as much in large batches, but its small table adds a page of its own to every transaction, which shows when a transaction holds a move or two (8.6 KiB per move for one person against B's 3.1). The moves per second vary much more from run to run on this host than the bytes do (B at 200 people: 14,370 to 17,260).
+
+The 200-tab run with brotli streams, the four builds alternating; N is a build with the outbox insert switched off, as in the first round:
+
+| | A, index on the tab | B, no index | C, chain per tab | N, no outcome |
+|---|---|---|---|---|
+| runs | 7 | 7 | 3 | 7 |
+| send to 204, p50 | 4.0 (3.6 to 5.2) ms | 4.4 (3.3 to 5.1) ms | 3.8 (3.3 to 4.1) ms | 3.4 (3.1 to 4.0) ms |
+| send to 204, p95 | 16.5 (10.2 to 27.1) ms | 14.6 (7.6 to 23.1) ms | 14.2 (14.0 to 17.5) ms | 11.6 (6.9 to 17.8) ms |
+| send to outcome on the stream, p50 | 50 (47 to 57) ms | 52 (46 to 55) ms | 50 (47 to 50) ms | |
+| send to outcome on the stream, p95 | 84 (76 to 103) ms | 89 (74 to 104) ms | 84 (76 to 85) ms | |
+| server CPU | 4.0 (3.7 to 4.8) cores | 4.1 (3.6 to 4.4) cores | 3.9 (3.6 to 3.9) cores | 3.8 (3.5 to 4.4) cores |
+| writer: moves per transaction | 2.3 (2.1 to 2.6) | 2.3 (1.9 to 2.5) | 2.1 (2.0 to 2.2) | 2.0 (1.8 to 2.2) |
+| writer: time per transaction | 2.4 (2.2 to 2.8) ms | 2.6 (2.0 to 2.7) ms | 2.3 (2.1 to 2.4) ms | 2.1 (1.9 to 2.4) ms |
+
+Other agents' builds and tests came and went on the host meanwhile. In the last four rounds the rest of the host used 1.2 to 5.4 cores during a run (`others.txt`), and a run's p95 follows that more than the build: A's went from 11.7 ms with 1.3 cores busy beside it to 27.1 ms with 5.4. These runs cannot tell A from B; their medians lean the way the bench does. At two moves per transaction the index adds a page or two to a commit, which is small against the noise here, and every build is faster than in the first round (see the second round below).
+
+B's cost moves to the reads. A render walks every tab's messages since its own last one, about 115 ns each (`scan.txt`: 1,000 messages take 0.19 ms, 100,000 take 11.5 ms). At 200 tabs moving four times a second that is about 200 messages and 25 µs a render; the most is a tab that sat idle beside such a board for the sweep's ten minutes, 480,000 messages and 55 ms, once.
+
+Kept B: it writes the fewest bytes per outcome and adds no statement to a command, and it survives a deploy as A did, since the page reports the last message it got and the new process reads from there (`TestOutcomeAfterFrameAndAcrossRestarts`). C costs a page per transaction more than B, which is most of what A costs when a transaction holds a move or two.

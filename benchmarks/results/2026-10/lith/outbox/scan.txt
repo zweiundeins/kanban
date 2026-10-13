@@ -1,0 +1,6 @@
+# Variant B's read: the tab view's query (outboxQuery) on a tab_outbox holding n messages of
+# other tabs after the tab's last one, best of five, i5-13500, 2026-10-13 (a throwaway test).
+   1000 messages after the tab's last one: 187.524µs
+  10000 messages after the tab's last one: 1.188137ms
+ 100000 messages after the tab's last one: 11.547243ms
+ 480000 messages after the tab's last one: 54.927449ms

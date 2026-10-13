@@ -1,0 +1,13 @@
+# 200-tab runs of the last four rounds: the cores the rest of the host used meanwhile (approximate)
+A load-200-20261013T071332.json others 1.3 cores
+B load-200-20261013T071417.json others 3.33 cores
+N load-200-20261013T071514.json others 2.22 cores
+B load-200-20261013T071620.json others 2.07 cores
+N load-200-20261013T072817.json others 1.2 cores
+A load-200-20261013T072902.json others 3.47 cores
+N load-200-20261013T072948.json others 3.09 cores
+A load-200-20261013T073041.json others 5.36 cores
+B load-200-20261013T074053.json others 4.45 cores
+A load-200-20261013T074148.json others 3.71 cores
+B load-200-20261013T075401.json others 2.44 cores
+N load-200-20261013T075447.json others 2.25 cores
