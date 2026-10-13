@@ -33,6 +33,27 @@ test('a card is added only when the server confirms it', async () => {
 	await p.context().close()
 })
 
+test('a pending action’s button is busy for assistive technology', async () => {
+	const p = await login(browser, server.base, 'chiara@example.com')
+	await openBoard(p, server.base)
+	await delay(p, '**/boards/1/lists', 600)
+	const busy = () => p.locator('.add-list button').getAttribute('aria-busy')
+	assert.equal(await busy(), 'false')
+	await p.locator('.add-list input').fill('Busy list')
+	await p.locator('.add-list input').press('Enter')
+	await sleep(150)
+	assert.equal(await busy(), 'true', 'busy while the server has it')
+	await lane(p, 'Busy list').waitFor()
+	await p.waitForFunction(() => document.querySelector('.add-list button').getAttribute('aria-busy') === 'false')
+	// Archived again, for the tests that follow.
+	await lane(p, 'Busy list').locator('.icon-btn').click()
+	p.once('dialog', (dlg) => dlg.accept())
+	await p.locator('.menu:popover-open button', { hasText: 'Archive list' }).click()
+	await lane(p, 'Busy list').waitFor({ state: 'detached' })
+	noErrors(p)
+	await p.context().close()
+})
+
 test('a keyboard move is pending until the board shows it', async () => {
 	const p = await login(browser, server.base, 'anna@example.com')
 	await openBoard(p, server.base)

@@ -76,7 +76,7 @@ templ Detail(c *app.CardDetail, descHTML string, viewers []app.User, now time.Ti
 					>
 						<textarea data-bind={ "_in.d" + id(c.ID) } data-ignore-morph rows="8" aria-label="Description (Markdown)" data-attr:readonly={ Pending("d" + id(c.ID)) }></textarea>
 						<div class="row">
-							<button type="submit" class="btn primary sm" data-attr:aria-busy={ Pending("d" + id(c.ID)) }>Save</button>
+							<button type="submit" class="btn primary sm" data-attr:aria-busy={ Busy("d" + id(c.ID)) }>Save</button>
 							<button type="button" class="btn ghost sm" data-on:click="$_edit = ''">Cancel</button>
 							<span class="muted small">Markdown works: **bold**, lists, links.</span>
 						</div>
@@ -86,7 +86,7 @@ templ Detail(c *app.CardDetail, descHTML string, viewers []app.User, now time.Ti
 					<h3 id="comments-h">Comments</h3>
 					<form class="comment-new" data-on:submit__prevent={ "$_in.c" + id(c.ID) + "?.trim() && (" + ActKey(cardURL(c, "/comments"), "k"+id(c.ID), "body: $_in.c"+id(c.ID)) + ")" }>
 						<textarea data-bind={ "_in.c" + id(c.ID) } data-ignore-morph rows="2" placeholder="Write a comment…" aria-label="New comment" data-attr:readonly={ Pending("k" + id(c.ID)) } data-on:keydown="evt.key === 'Enter' && (evt.metaKey || evt.ctrlKey) && el.form.requestSubmit()"></textarea>
-						<button type="submit" class="btn sm" data-attr:aria-busy={ Pending("k" + id(c.ID)) }>Comment</button>
+						<button type="submit" class="btn sm" data-attr:aria-busy={ Busy("k" + id(c.ID)) }>Comment</button>
 					</form>
 					<ol class="comments">
 						for i := len(c.CommentList) - 1; i >= 0; i-- {
@@ -131,7 +131,7 @@ templ Detail(c *app.CardDetail, descHTML string, viewers []app.User, now time.Ti
 									<option value={ col }>{ col }</option>
 								}
 							</select>
-							<button type="submit" class="btn sm" data-attr:aria-busy={ Pending("ln") }>Add</button>
+							<button type="submit" class="btn sm" data-attr:aria-busy={ Busy("ln") }>Add</button>
 						</form>
 					</details>
 				</section>
@@ -168,7 +168,7 @@ templ Detail(c *app.CardDetail, descHTML string, viewers []app.User, now time.Ti
 					<button
 						type="button"
 						class="btn danger sm"
-						data-attr:aria-busy={ Pending("ar" + id(c.ID)) }
+						data-attr:aria-busy={ Busy("ar" + id(c.ID)) }
 						data-on:click={ "confirm('Archive this card?') && (" + ActKey(cardURL(c, "/archive"), "ar"+id(c.ID), "") + ")" }
 					>Archive card</button>
 				</section>

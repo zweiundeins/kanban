@@ -44,3 +44,4 @@ It runs on lith (`github.com/zweiundeins/lith`, replaced by `/develop/lith` in g
 - Lanes move through sb-kanban-board's lane support (Starbase b91a1a5): the grip, Alt and the arrows on it, and the menu's step buttons all end in one `sb-kanban-lane-move` handler. A lane carries `data-seen` (its move version): the server refuses a move from a page that hasn't seen the last one.
 - The login form is rate limited (a token bucket per IP: 10 at once, then one every 6 s); the e2e harness logs each person in once.
 - Inputs inside patched regions carry `data-ignore-morph` and get their value from a signal: a frame must not reset what someone is typing.
+- ARIA states set by `data-attr` are the strings `'true'` or `'false'` (`Busy`, `Invalid` in `expr.go`): Datastar writes a boolean `true` as an empty value, which assistive technology reads as false. `TestARIAStatesAreStrings` checks the markup.

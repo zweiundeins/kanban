@@ -94,7 +94,7 @@ templ BoardPage(s BoardShell) {
 							data-attr:readonly={ Pending("nl") }
 							data-class:pending={ Pending("nl") }
 						/>
-						<button type="submit" class="btn" data-attr:aria-busy={ Pending("nl") }>Add list</button>
+						<button type="submit" class="btn" data-attr:aria-busy={ Busy("nl") }>Add list</button>
 					</form>
 				</section>
 			</main>
@@ -293,7 +293,7 @@ templ inlineTitle(key, triggerID, class, value, label, inputLabel, url, field st
 			aria-label={ inputLabel }
 			data-attr:readonly={ Pending(key) }
 			data-class:pending={ Pending(key) }
-			data-attr:aria-invalid={ Refused(key) }
+			data-attr:aria-invalid={ Invalid(key) }
 			data-effect={ "$_edit === " + js(key) + " && requestAnimationFrame(() => document.activeElement !== el && (el.focus(), el.select()))" }
 		/>
 	</sb-inline-edit>

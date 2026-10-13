@@ -54,6 +54,13 @@ func Refused(key string) string {
 	return fmt.Sprintf(`!!($_pend[%[1]s] && $_acks[$_pend[%[1]s]] && $_acks[$_pend[%[1]s]] !== 'ok')`, js(key))
 }
 
+// Busy is Pending as aria-busy's 'true' or 'false': data-attr writes a
+// boolean true as an empty value, which assistive technology reads as false.
+func Busy(key string) string { return Pending(key) + ` ? 'true' : 'false'` }
+
+// Invalid is Refused as aria-invalid's 'true' or 'false'.
+func Invalid(key string) string { return Refused(key) + ` ? 'true' : 'false'` }
+
 // Done is true when key's last action succeeded.
 func Done(key string) string {
 	return fmt.Sprintf(`!!($_pend[%[1]s] && $_acks[$_pend[%[1]s]] === 'ok')`, js(key))
