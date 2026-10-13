@@ -214,25 +214,88 @@ func TestOutcomeAfterFrameAndAcrossRestarts(t *testing.T) {
 	}
 }
 
-// The page's watchdog watches the heartbeat's signal: every heartbeat
-// patches it with a bigger number.
-func TestHeartbeatPatchesThePing(t *testing.T) {
-	srv, a, stop := testServer(t, filepath.Join(t.TempDir(), "k.db"))
-	defer stop()
-	token, _, err := a.Login(context.Background(), "anna@example.com", "demo")
+// session logs the user in and returns the session's cookie.
+func session(t *testing.T, a *app.App, email string) string {
+	t.Helper()
+	token, _, err := a.Login(context.Background(), email, "demo")
 	if err != nil {
 		t.Fatal(err)
 	}
-	cookie := sessionCookie + "=" + token
-	req, _ := http.NewRequest("GET", srv.URL+"/boards/1", nil)
+	return sessionCookie + "=" + token
+}
+
+// page fetches a page with the cookie.
+func page(t *testing.T, url, cookie string) string {
+	t.Helper()
+	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Set("Cookie", cookie)
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
-	page, _ := io.ReadAll(res.Body)
-	res.Body.Close()
-	if !strings.Contains(string(page), `data-effect="$`+views.PingSignal+`, `) || !strings.Contains(string(page), `&#34;`+views.PingSignal+`&#34;:0`) {
+	defer res.Body.Close()
+	body, _ := io.ReadAll(res.Body)
+	return string(body)
+}
+
+// A page drawn now starts at the newest message of any tab, since its own
+// tab's messages all come later; its stream reads only those.
+func TestPageStartsAtTheOutboxEnd(t *testing.T) {
+	srv, a, stop := testServer(t, filepath.Join(t.TempDir(), "k.db"))
+	defer stop()
+	cookie := session(t, a, "anna@example.com")
+	post(t, srv.URL, cookie, "/boards/1/lists", `{"tab":"another-tab-0000001","op":"o1","name":"Other"}`)
+	end, err := app.OutboxEnd(context.Background(), a.DB.R)
+	if err != nil || end == 0 {
+		t.Fatalf("the outbox ends at %d, %v", end, err)
+	}
+	m := regexp.MustCompile(`&#34;outbox&#34;:(\d+)`).FindStringSubmatch(page(t, srv.URL+"/boards/1", cookie))
+	if m == nil || m[1] != fmt.Sprint(end) {
+		t.Fatalf("the page starts at %v, the outbox ends at %d", m, end)
+	}
+	const tab = "fresh-tab-00000001"
+	events, close := openStream(t, srv.URL, cookie, tab, fmt.Sprintf(`{"card":0,"outbox":%d}`, end))
+	defer close()
+	until(t, events, `id="lanes"`)
+	post(t, srv.URL, cookie, "/boards/1/lists", fmt.Sprintf(`{"tab":%q,"op":"f1","name":"Fresh"}`, tab))
+	until(t, events, `"f1":"ok"`)
+}
+
+// tab_outbox has no index on the tab: the tab's view walks the ids after
+// the newest message it has, and must never scan the whole table.
+func TestOutboxQueryWalksTheIDs(t *testing.T) {
+	d, err := db.Open(context.Background(), filepath.Join(t.TempDir(), "k.db"), db.Options{Synchronous: "NORMAL"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	rows, err := d.R.Query("EXPLAIN QUERY PLAN "+outboxQuery, 7, "tab", 1, keepMessages)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var plan []string
+	for rows.Next() {
+		var id, parent, unused int
+		var detail string
+		if err := rows.Scan(&id, &parent, &unused, &detail); err != nil {
+			t.Fatal(err)
+		}
+		plan = append(plan, detail)
+	}
+	if len(plan) != 1 || !strings.Contains(plan[0], "INTEGER PRIMARY KEY (rowid>?)") {
+		t.Fatalf("plan %q", plan)
+	}
+}
+
+// The page's watchdog watches the heartbeat's signal: every heartbeat
+// patches it with a bigger number.
+func TestHeartbeatPatchesThePing(t *testing.T) {
+	srv, a, stop := testServer(t, filepath.Join(t.TempDir(), "k.db"))
+	defer stop()
+	cookie := session(t, a, "anna@example.com")
+	doc := page(t, srv.URL+"/boards/1", cookie)
+	if !strings.Contains(doc, `data-effect="$`+views.PingSignal+`, `) || !strings.Contains(doc, `&#34;`+views.PingSignal+`&#34;:0`) {
 		t.Fatalf("the page doesn't watch $%s", views.PingSignal)
 	}
 

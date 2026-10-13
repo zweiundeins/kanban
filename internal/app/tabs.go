@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/zweiundeins/lith/sqlite"
 	"github.com/zweiundeins/lith/writer"
 )
 
@@ -84,6 +85,13 @@ func queue(tx *writer.Tx, user int64, tab string, board, after int64, signals []
 	}
 	tx.Touch(TabTopic(user, tab))
 	return nil
+}
+
+// OutboxEnd is the newest message of any tab's outbox: a page drawn now
+// starts there, since its tab's messages all come later.
+func OutboxEnd(ctx context.Context, q sqlite.Querier) (end int64, err error) {
+	err = q.QueryRowContext(ctx, `SELECT coalesce(max(id), 0) FROM tab_outbox`).Scan(&end)
+	return end, err
 }
 
 func tabToasts(tx *writer.Tx, user int64, tab string) ([]Toast, int64, error) {

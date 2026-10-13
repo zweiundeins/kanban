@@ -12,6 +12,7 @@ type BoardShell struct {
 	Board    *app.Board
 	Tab      string
 	Open     int64
+	Outbox   int64 // where the tab's messages start
 	Presence []byte
 	Lanes    []byte
 	Detail   []byte
@@ -23,8 +24,8 @@ const PingSignal = "_ping"
 
 // signalsFor are the page's signals. card and outbox go to the server with
 // the stream's request: a stream that reconnects carries on where the page is.
-func signalsFor(tab string, open int64) string {
-	return `{"_tab":` + js(tab) + `,"card":` + id(open) + `,"outbox":0,"_pend":{},"_acks":{},"_edit":"","_val":"","_in":{},"_net":"","_offline":false,"_beat":0,"` + PingSignal + `":0}`
+func signalsFor(tab string, open, outbox int64) string {
+	return `{"_tab":` + js(tab) + `,"card":` + id(open) + `,"outbox":` + id(outbox) + `,"_pend":{},"_acks":{},"_edit":"","_val":"","_in":{},"_net":"","_offline":false,"_beat":0,"` + PingSignal + `":0}`
 }
 
 // fetchEvents watches every request. The stream (on this element) going
@@ -71,7 +72,7 @@ templ BoardPage(s BoardShell) {
 	@Layout(s.Page) {
 		<div
 			id="app"
-			data-signals={ signalsFor(s.Tab, s.Open) }
+			data-signals={ signalsFor(s.Tab, s.Open, s.Outbox) }
 			data-on:datastar-fetch={ fetchEvents }
 			data-on:popstate__window={ popstate }
 		>

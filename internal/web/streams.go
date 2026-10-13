@@ -46,7 +46,7 @@ func (s *Server) stream(w http.ResponseWriter, r *http.Request) {
 	defer s.Seats.Leave(seat)
 	err := s.Hub.Serve(w, r, lithlive.Spec{
 		ID:        app.TabTopic(u.ID, tab),
-		Views:     []lithlive.View{s.tabView(u.ID, tab), s.boardView(board), s.presenceView(board)},
+		Views:     []lithlive.View{s.tabView(u.ID, tab, page.Outbox), s.boardView(board), s.presenceView(board)},
 		WriteTick: live.NewStream(u.ID, seat, page.Outbox).WriteTick,
 	})
 	if err != nil && r.Context().Err() == nil {
@@ -110,15 +110,20 @@ func (s *Server) presenceView(board int64) lithlive.View {
 // board.
 const keepMessages = 32
 
+// outboxQuery reads a tab's newest messages after an id. tab_outbox has
+// no index on the tab: it walks every message after that id.
+const outboxQuery = `SELECT id, board_id, after, signals, status, toasts FROM tab_outbox
+	WHERE id > ? AND tab = ? AND user_id = ? ORDER BY id DESC LIMIT ?`
+
 // tabView is the newest messages of the tab's outbox, each formatted once.
-// A render reads only the messages since the one before.
-func (s *Server) tabView(user int64, tab string) lithlive.View {
+// A render reads only the messages after the newest it has read, or after
+// from, the last one the page has.
+func (s *Server) tabView(user int64, tab string, from int64) lithlive.View {
 	key := app.TabTopic(user, tab)
 	var msgs []live.Message
-	var last int64
+	last := from
 	return lithlive.View{Key: key, Topics: []string{key}, Render: func(ctx context.Context, tx *sql.Tx) (any, error) {
-		rows, err := reads(ctx, tx).QueryContext(ctx, `SELECT id, board_id, after, signals, status, toasts FROM tab_outbox
-			WHERE tab = ? AND user_id = ? AND id > ? ORDER BY id DESC LIMIT ?`, tab, user, last, keepMessages)
+		rows, err := reads(ctx, tx).QueryContext(ctx, outboxQuery, last, tab, user, keepMessages)
 		if err != nil {
 			return nil, err
 		}

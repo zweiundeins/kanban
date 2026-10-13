@@ -106,9 +106,13 @@ func (s *Server) boardPage(w http.ResponseWriter, r *http.Request) {
 	}
 	var b *app.Board
 	var detail []byte
+	var outbox int64
 	err = s.App.DB.View(r.Context(), func(tx *sql.Tx) error {
 		var err error
 		if b, err = app.ReadBoard(r.Context(), tx, board); err != nil {
+			return err
+		}
+		if outbox, err = app.OutboxEnd(r.Context(), tx); err != nil {
 			return err
 		}
 		var viewers []app.User
@@ -130,7 +134,7 @@ func (s *Server) boardPage(w http.ResponseWriter, r *http.Request) {
 	p.Modules = boardModules
 	p.Class = "board-page"
 	s.html(w, r, http.StatusOK, views.BoardPage(views.BoardShell{
-		Page: p, Board: b, Tab: randomID(16), Open: card,
+		Page: p, Board: b, Tab: randomID(16), Open: card, Outbox: outbox,
 		Presence: s.Render.Presence(b.Members, present),
 		Lanes:    renderBytes(views.Board(b, s.Render.Lanes(b).Full())),
 		Detail:   detail,
