@@ -1,0 +1,58 @@
+# Execution trace of the server, 200 tabs, zstd, 4 s, 2026-10-13 (quiet host)
+## sched
+Dropped 350 nodes (cum <= 22.90ms)
+Showing top 12 nodes out of 90
+      flat  flat%   sum%        cum   cum%
+ 3271.32ms 71.43% 71.43%  3271.32ms 71.43%  runtime.selectnbsend
+  551.54ms 12.04% 83.48%   551.54ms 12.04%  runtime.chanrecv1
+  354.30ms  7.74% 91.22%   354.31ms  7.74%  runtime.chansend1
+  209.64ms  4.58% 95.79%   209.64ms  4.58%  sync.(*Mutex).Unlock
+  111.52ms  2.44% 98.23%   111.52ms  2.44%  modernc.org/sqlite.interruptOnDone.func2
+   57.43ms  1.25% 99.48%    61.37ms  1.34%  context.(*cancelCtx).cancel
+    0.12ms 0.0027% 99.49%    36.70ms   0.8%  modernc.org/sqlite/lib._getAndInitPage
+    0.04ms 0.00079% 99.49%    48.21ms  1.05%  modernc.org/sqlite/lib._getPageNormal
+    0.03ms 0.00074% 99.49%    90.93ms  1.99%  modernc.org/sqlite/lib._pthreadMutexLeave
+    0.02ms 0.00035% 99.49%   207.26ms  4.53%  database/sql.withLock
+    0.01ms 0.00026% 99.49%    42.37ms  0.93%  log/slog.(*commonHandler).handle
+         0     0% 99.49%    61.37ms  1.34%  context.WithCancel.func1
+## sync
+Dropped 288 nodes (cum <= 4.37s)
+Showing top 12 nodes out of 26
+      flat  flat%   sum%        cum   cum%
+   792.35s 90.67% 90.67%    792.35s 90.67%  runtime.selectgo
+    46.19s  5.29% 95.95%     46.19s  5.29%  runtime.chanrecv2
+    34.58s  3.96% 99.91%     34.58s  3.96%  runtime.chanrecv1
+         0     0% 99.91%    810.44s 92.74%  github.com/zweiundeins/lith/edge.CSRF.Handler.func1
+         0     0% 99.91%    810.44s 92.74%  github.com/zweiundeins/lith/edge.SecurityHeaders.Handler.func1
+         0     0% 99.91%    784.01s 89.71%  github.com/zweiundeins/lith/live.(*Hub).Serve
+         0     0% 99.91%    784.01s 89.71%  github.com/zweiundeins/lith/live.(*Hub).pump
+         0     0% 99.91%     46.40s  5.31%  github.com/zweiundeins/lith/live.(*worker).run
+         0     0% 99.91%    116.08s 13.28%  github.com/zweiundeins/lith/sse.(*Stream).Write
+         0     0% 99.91%     26.42s  3.02%  github.com/zweiundeins/lith/writer.(*Writer).Do
+         0     0% 99.91%     26.42s  3.02%  kanban/internal/app.(*App).MoveCard
+         0     0% 99.91%     26.42s  3.02%  kanban/internal/app.(*App).act
+## syscall
+Dropped 106 nodes (cum <= 0.02s)
+Showing top 12 nodes out of 150
+      flat  flat%   sum%        cum   cum%
+     3.12s 80.74% 80.74%      3.12s 80.74%  modernc.org/libc.___syscall_cp
+     0.54s 13.98% 94.72%      0.54s 13.98%  syscall.write
+     0.11s  2.74% 97.46%      0.11s  2.74%  modernc.org/libc.X__syscall2
+     0.05s  1.20% 98.66%      0.05s  1.20%  modernc.org/libc.X__syscall6
+     0.03s   0.9% 99.56%      0.03s   0.9%  syscall.read
+         0     0% 99.56%      0.03s  0.71%  bufio.(*Reader).Peek
+         0     0% 99.56%      0.03s  0.71%  bufio.(*Reader).fill
+         0     0% 99.56%      0.49s 12.56%  bufio.(*Writer).Flush
+         0     0% 99.56%      0.06s  1.57%  bufio.(*Writer).Write
+         0     0% 99.56%      0.09s  2.46%  database/sql.(*DB).queryDC
+         0     0% 99.56%      0.09s  2.46%  database/sql.(*DB).queryDC.func1
+         0     0% 99.56%      3.19s 82.63%  database/sql.(*DB).retry
+## the writer's syscalls
+         0     0%     0%  3103.44ms 80.36%  github.com/zweiundeins/lith/writer.(*Writer).Run
+         0     0%     0%  3103.44ms 80.36%  github.com/zweiundeins/lith/writer.(*Writer).loop
+         0     0%     0%  3103.42ms 80.36%  github.com/zweiundeins/lith/writer.(*Writer).exec
+         0     0% 80.01%  2842.17ms 73.59%  modernc.org/sqlite/lib._full_fsync
+         0     0% 80.01%  2840.25ms 73.54%  github.com/zweiundeins/lith/writer.(*Writer).apply
+         0     0% 80.01%  2827.67ms 73.22%  modernc.org/sqlite/lib._walFrames
+         0     0% 80.01%   263.20ms  6.81%  github.com/zweiundeins/lith/writer.(*Writer).checkpoint
+         0     0% 80.01%   263.12ms  6.81%  modernc.org/sqlite/lib._walCheckpoint

@@ -1,0 +1,18 @@
+# Stream encoders on the 200-card board's real frames, 2026-10-12, one i5-13500 core.
+# 120 frames: random moves on the board (1 or 40 a frame), each frame's shared lane delta
+# compressed by one encoder that already carried the full board, flushed per frame.
+# Heap per stream: 20 encoders, the full board and 40 frames of 40 moves each, after GC.
+moves/tick  1  zstd fastest w19   raw  32780 B/frame  wire    491 B/frame    17 us/frame
+moves/tick  1  zstd default w19   raw  32780 B/frame  wire    388 B/frame    16 us/frame
+moves/tick  1  zstd better w19    raw  32780 B/frame  wire    141 B/frame    41 us/frame
+moves/tick  1  brotli q4 w18      raw  32780 B/frame  wire    341 B/frame   127 us/frame
+moves/tick  1  brotli q5 w18      raw  32780 B/frame  wire    276 B/frame   117 us/frame
+moves/tick 40  zstd fastest w19   raw 138520 B/frame  wire   3090 B/frame    73 us/frame
+moves/tick 40  zstd default w19   raw 138520 B/frame  wire   2161 B/frame    63 us/frame
+moves/tick 40  zstd better w19    raw 138520 B/frame  wire    641 B/frame   165 us/frame
+moves/tick 40  brotli q4 w18      raw 138520 B/frame  wire    961 B/frame   607 us/frame
+moves/tick 40  brotli q5 w18      raw 138520 B/frame  wire    699 B/frame   492 us/frame
+zstd fastest   heap per stream 1.64 MiB
+zstd default   heap per stream 2.72 MiB
+zstd better    heap per stream 5.53 MiB
+brotli q4 w18  heap per stream 2.11 MiB

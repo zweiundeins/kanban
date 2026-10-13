@@ -131,3 +131,54 @@ Anders Murphy's [SQLite benchmark](https://andersmurphy.com/2025/12/02/100000-tp
 - PLANKA's numbers are its out-of-the-box behaviour. A tuned deployment (a CDN, HTTP caching, a smaller bundle) would load faster.
 - The load test runs against ours only, with the load tool on the same machine.
 - Raw data: `results/2026-10/`.
+
+## On lith, 2026-10-13
+
+Kanban now runs on lith, the shared runtime of these projects (commits 8db663e to 41b4d82): lith's sqlite and writer, its live hub with one shared view per board, lith's sse for the streams and its edge for CSRF, compression and static files. These runs compare that code, built against lith d9e58fb, with the binary of 752aaeb, the last commit before the move. lith's livefix merge (6265bce) landed while they ran: the tests and the end-to-end suite pass on it, but the numbers below are for d9e58fb.
+
+Method: the same machine as above, Go 1.26.5 for both binaries, the old one built in a temporary worktree at 752aaeb, both with `CGO_ENABLED=0 -trimpath`. Other heavy jobs on the host were held back (load average about 1 before the runs). Old and new ran alternately, the order rotating from round to round. Each figure is the median, with the lowest and the highest run in brackets. Raw data: `results/2026-10/lith/`.
+
+### The writer alone
+
+The test binaries of `internal/app` from both commits, `taskset -c 0-11 ./app.test -test.run X -test.bench MoveCard -test.benchtime 5s`, five rounds each, and six more of the one-person case, whose fsyncs vary the most:
+
+| people moving at once | moves per second, old | new | moves per transaction, old / new | time per transaction, old / new |
+|---|---|---|---|---|
+| 1 | 284 (248 to 309) | 272 (169 to 316) | 1 / 1 | 3.5 / 3.6 ms |
+| 50 | 4,500 (3,912 to 7,801) | 5,229 (4,342 to 7,554) | 25 / 26 | 5.5 / 4.7 ms |
+| 200 | 12,366 (10,739 to 16,217) | 13,181 (10,457 to 17,606) | 104 / 108 | 8.3 / 7.9 ms |
+
+The new writer is lith's, which checkpoints the WAL between batches rather than inside a commit. The bench sends its moves without a tab, so it writes no outcome to a tab's outbox: it measures the move alone, as before.
+
+### 200 tabs
+
+`KANBAN=<binary> CONFIGS="200 250ms" ACCEPT=<...> benchmarks/scripts/load.sh 1`, five rounds of three runs: the old binary, which answers Chrome's Accept-Encoding with brotli; the new one with Chrome's Accept-Encoding, which lith answers with zstd; and the new one with `br` alone, as Safari before 26.3 gets it. The same load tool, the new `cmd/loadtest`, drove all three.
+
+| | old, brotli | new, brotli | new, zstd |
+|---|---|---|---|
+| moves per second | 790 (788 to 794) | 790 (788 to 791) | 787 (784 to 789) |
+| send to 204, p50 | 4.7 (4.6 to 4.8) ms | 5.4 (5.0 to 5.9) ms | 12.6 (10.9 to 13.6) ms |
+| send to 204, p95 | 14.4 (13.9 to 16.3) ms | 21.4 (17.6 to 27.5) ms | 46.0 (42.3 to 49.2) ms |
+| send to outcome on the stream, p50 | 57 (57 to 58) ms | 61 (60 to 62) ms | 61 (60 to 63) ms |
+| send to outcome on the stream, p95 | 101 (98 to 101) ms | 103 (101 to 106) ms | 105 (102 to 109) ms |
+| frames per tab per second | 18.0 (18.0 to 18.1) | 19.7 (19.6 to 19.7) | 19.6 (19.6 to 19.7) |
+| bytes per frame on the wire | 1,011 (1,007 to 1,018) | 953 (948 to 962) | 3,141 (3,133 to 3,170) |
+| server CPU | 4.9 (4.9 to 5.0) cores | 5.2 (5.1 to 5.2) cores | 2.6 (2.6 to 2.7) cores |
+| server memory, peak RSS | 1,159 (1,143 to 1,165) MB | 903 (897 to 905) MB | 825 (819 to 826) MB |
+| writer: moves per transaction | 2.4 (2.4 to 2.5) | 2.8 (2.6 to 3.0) | 3.1 (2.9 to 3.3) |
+| writer: time per transaction | 2.8 (2.7 to 2.8) ms | 3.0 (2.8 to 3.2) ms | 3.4 (3.1 to 3.6) ms |
+| render: time per board frame | 2.7 (2.7 to 2.8) ms | 3.2 (3.1 to 3.3) ms | 4.2 (4.1 to 4.4) ms |
+| load tool CPU | 3.9 (3.8 to 3.9) cores | 3.9 (3.8 to 3.9) cores | 5.2 (5.2 to 5.4) cores |
+
+No move failed or went unanswered in any run.
+
+### Where the time goes
+
+- **Compressing is still most of the work.** In a CPU profile at 200 tabs, brotli takes 88% of the server's samples; with zstd, the encoder takes 60% and moving its window another 15% (`profile-200.txt`). A stream now holds a compression slot only while it compresses, not during its network write, so streams keep up: old streams skipped 9,973 frames a run, new ones 3. That is 9% more frames per tab, and with brotli 6% more CPU. The new server makes far less garbage, 57 MB a second against 303 (4 collections a run against 20), and its RSS is 22% lower with brotli, 29% with zstd.
+- **zstd at lith's level sends three times brotli's bytes.** lith runs zstd at its fastest level, which finds few of the matches in a frame that changes all eight lanes. Offline, on 120 real frames of this board (`encoders.txt`), a frame with 40 moves costs 3,090 bytes at that level and 961 with brotli quality 4, at 73 µs against 607 µs. zstd's SpeedBetterCompression would send 641 bytes at 165 µs, but holds 5.5 MiB per stream against brotli's 2.1 and the fastest level's 1.6. A frame with one move is 491 bytes with zstd and 341 with brotli.
+- **The outcome now goes to SQLite with the move.** The writer is bound by fsync: in a 4-second trace at 200 tabs it spent 71% of the time in the commit's fsync and 7% checkpointing (`trace-200-zstd.txt`), so a little more work per commit shows up as queueing. Each move now also writes its outcome, the live region's text and on a refusal the tab's toasts into `tab_outbox` and `tab_state`, which is what lets them survive a deploy: 59 KiB written to disk per move against 52, 3.0 ms per transaction against 2.8 with brotli. A build with that insert switched off, the same otherwise (`switches/`, two runs each), answers moves as the old binary does: 4.3 to 4.6 ms at p50 and 12.4 to 13.8 ms at p95, against 4.7 to 4.8 and 18.3 to 18.5 ms with the insert. Removing the per-tab index from that table (one random page per move) is the next thing to try.
+- **zstd's 204 times are mostly the load tool's.** With zstd the load tool needs 5.2 of its 8 cores (3.9 with brotli), so its moves go out in bursts and it reads the 204s late. In a run with the server's own request log, moves took 6 ms at p50 and 21 ms at p95 inside the server while the tool measured 12.9 and 44.8 ms. With the tool on 14 threads and the server on 6, the same zstd server answered in 6.9 ms (p50) and 18.8 ms (p95), and the outcome arrived after 50 and 82 ms (one run). lith's `ZstdLowMemory` changed nothing there (`switches/`).
+- **A less busy server clocks down.** The host's CPUs run intel_pstate in powersave with balance_performance, so a core that idles more runs slower when work arrives: the zstd server, at 2.6 cores, renders a board in 4.2 ms where the brotli one, at 5.2 cores, takes 3.2.
+- **The outcome arrives 4 ms later at the median with brotli** (61 against 57 ms) and 2 ms later at p95. 0.7 ms of it is the 204 and 0.5 ms the board render (3.2 against 2.7 ms); the rest is in the frame path (the tick and the queue for compression slots) and was not broken down further.
+
+In short: the writer alone is as fast as before or faster. At 200 tabs with brotli on both sides, the new server sends fewer bytes, holds less memory and delivers more frames, for 6% more CPU, 4 ms more to the outcome at the median and 7 ms more to the 204 at p95, the latter from the outbox insert. With zstd, which lith gives Chrome, it uses half the CPU and sends three times the bytes, until kanban can pick zstd's level through lith.

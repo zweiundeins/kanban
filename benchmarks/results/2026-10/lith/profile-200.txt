@@ -1,0 +1,62 @@
+# CPU profile of the server, 200 tabs, 15 s, 2026-10-12 (the host was busy: compare shapes, not totals)
+## brotli
+Time: 2026-10-12 22:24:50 UTC
+Duration: 15s, Total samples = 65.43s (436.19%)
+Showing nodes accounting for 57.73s, 88.23% of 65.43s total
+Dropped 926 nodes (cum <= 0.33s)
+Showing top 25 nodes out of 147
+      flat  flat%   sum%        cum   cum%
+    18.46s 28.21% 28.21%     42.95s 65.64%  github.com/andybalholm/brotli.(*hashLongestMatchQuickly).StoreRange
+    15.36s 23.48% 51.69%     15.63s 23.89%  github.com/andybalholm/brotli.(*hashLongestMatchQuickly).HashBytes (inline)
+     8.89s 13.59% 65.28%     24.48s 37.41%  github.com/andybalholm/brotli.(*hashLongestMatchQuickly).Store (inline)
+     3.62s  5.53% 70.81%      7.78s 11.89%  github.com/andybalholm/brotli.(*hashLongestMatchQuickly).FindLongestMatch
+     3.53s  5.40% 76.20%      3.53s  5.40%  internal/runtime/syscall/linux.Syscall6
+     2.42s  3.70% 79.90%      3.32s  5.07%  github.com/andybalholm/brotli.findMatchLengthWithLimit (inline)
+     1.18s  1.80% 81.71%      1.18s  1.80%  runtime.memmove
+     1.16s  1.77% 83.48%      1.16s  1.77%  encoding/binary.littleEndian.Uint64 (inline)
+     0.63s  0.96% 84.44%      0.63s  0.96%  github.com/andybalholm/brotli.extendLastCommand
+     0.55s  0.84% 85.28%     51.72s 79.05%  github.com/andybalholm/brotli.createBackwardReferences
+     0.47s  0.72% 86.00%      0.47s  0.72%  github.com/andybalholm/brotli.optimizeHuffmanCountsForRLE
+     0.30s  0.46% 86.46%      2.06s  3.15%  github.com/andybalholm/brotli.storeMetaBlock
+     0.26s   0.4% 86.86%      0.50s  0.76%  github.com/andybalholm/brotli.searchInStaticDictionary
+     0.21s  0.32% 87.18%      0.47s  0.72%  github.com/andybalholm/brotli.buildMetaBlockGreedyInternal
+     0.19s  0.29% 87.47%      0.64s  0.98%  github.com/andybalholm/brotli.createHuffmanTree
+     0.17s  0.26% 87.73%      3.83s  5.85%  modernc.org/sqlite/lib._sqlite3VdbeExec
+     0.06s 0.092% 87.82%      1.25s  1.91%  github.com/andybalholm/brotli.buildAndStoreHuffmanTree
+     0.05s 0.076% 87.90%      0.36s  0.55%  runtime.findRunnable
+     0.05s 0.076% 87.97%      0.45s  0.69%  runtime.mallocgc
+     0.04s 0.061% 88.03%     57.87s 88.45%  github.com/zweiundeins/lith/sse.(*Stream).Write
+     0.04s 0.061% 88.09%     57.93s 88.54%  kanban/internal/live.(*Stream).Write
+     0.03s 0.046% 88.14%      1.28s  1.96%  modernc.org/sqlite.(*stmt).query
+     0.02s 0.031% 88.17%     56.54s 86.41%  github.com/andybalholm/brotli.(*Writer).writeChunk
+
+## zstd
+Time: 2026-10-12 22:25:43 UTC
+Duration: 15s, Total samples = 30.75s (204.99%)
+Showing nodes accounting for 22.98s, 74.73% of 30.75s total
+Dropped 902 nodes (cum <= 0.15s)
+Showing top 25 nodes out of 233
+      flat  flat%   sum%        cum   cum%
+     5.99s 19.48% 19.48%     12.93s 42.05%  github.com/klauspost/compress/zstd.(*fastEncoder).Encode
+     4.58s 14.89% 34.37%      4.58s 14.89%  runtime.memmove
+     4.37s 14.21% 48.59%      4.37s 14.21%  internal/runtime/syscall/linux.Syscall6
+     2.61s  8.49% 57.07%      2.61s  8.49%  github.com/klauspost/compress/zstd.matchLen
+     1.36s  4.42% 61.50%      5.46s 17.76%  github.com/klauspost/compress/zstd.(*blockEnc).encode
+     0.53s  1.72% 63.22%      0.55s  1.79%  github.com/klauspost/compress/zstd.(*fseEncoder).buildCTable
+     0.45s  1.46% 64.68%      0.45s  1.46%  github.com/klauspost/compress/zstd.(*bitWriter).addBits16NC (inline)
+     0.36s  1.17% 65.85%      0.39s  1.27%  github.com/klauspost/compress/huff0.(*Scratch).huffSort
+     0.36s  1.17% 67.02%      0.53s  1.72%  github.com/klauspost/compress/zstd.(*blockEnc).genCodes
+     0.23s  0.75% 67.77%      0.69s  2.24%  github.com/klauspost/compress/huff0.(*Scratch).buildCTable
+     0.23s  0.75% 68.52%      0.23s  0.75%  runtime.futex
+     0.22s  0.72% 69.24%      0.26s  0.85%  internal/sync.(*Mutex).Lock (inline)
+     0.21s  0.68% 69.92%      4.47s 14.54%  modernc.org/sqlite/lib._sqlite3VdbeExec
+     0.19s  0.62% 70.54%      0.19s  0.62%  runtime.usleep
+     0.18s  0.59% 71.12%      0.80s  2.60%  github.com/klauspost/compress/zstd.(*fseEncoder).normalizeCount
+     0.17s  0.55% 71.67%      2.78s  9.04%  github.com/klauspost/compress/zstd.(*fastBase).matchlen (inline)
+     0.15s  0.49% 72.16%      0.23s  0.75%  github.com/klauspost/compress/zstd.(*fastEncoder).Encode.func1 (inline)
+     0.14s  0.46% 72.62%      0.20s  0.65%  github.com/klauspost/compress/fse.(*cState).encodeZero (inline)
+     0.14s  0.46% 73.07%      0.57s  1.85%  github.com/klauspost/compress/huff0.cTable.write
+     0.14s  0.46% 73.53%      0.26s  0.85%  github.com/klauspost/compress/zstd.(*fseEncoder).approxSize
+     0.10s  0.33% 73.85%      0.18s  0.59%  github.com/klauspost/compress/zstd.(*bitWriter).addBits64NC
+     0.08s  0.26% 74.11%      0.16s  0.52%  github.com/klauspost/compress/huff0.(*Scratch).compress1xDo
+     0.07s  0.23% 74.34%      0.22s  0.72%  runtime.selectgo
