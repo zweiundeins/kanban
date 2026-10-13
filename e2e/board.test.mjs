@@ -459,6 +459,87 @@ test('the page survives a server restart', async () => {
 	await p.context().close()
 })
 
+// The page's stream requests: how many started, and which are open, by tab.
+function watchStreams(page) {
+	const open = new Map()
+	const w = {
+		started: 0,
+		byTab: () => {
+			const n = {}
+			for (const tab of open.values()) n[tab] = (n[tab] ?? 0) + 1
+			return n
+		},
+	}
+	page.on('request', (r) => {
+		const u = new URL(r.url())
+		if (!u.pathname.endsWith('/live')) return
+		open.set(r, (w.tab = u.searchParams.get('tab')))
+		w.started++
+	})
+	const end = (r) => open.delete(r)
+	page.on('requestfinished', end)
+	page.on('requestfailed', end)
+	return w
+}
+
+test('after a deploy the page opens its stream again, once, and sees new changes', async () => {
+	// A server of its own: the stream count below is exact.
+	const srv = await startServer(server.bin)
+	const pages = []
+	try {
+		const a = await login(browser, srv.base, 'anna@example.com')
+		pages.push(a)
+		const aStreams = watchStreams(a)
+		const opened = a.waitForResponse((r) => new URL(r.url()).pathname.endsWith('/live') && r.status() === 200)
+		await openBoard(a, srv.base)
+		await opened
+		// Marks that a reload or a new #live would lose; counts sse.Reconnect events.
+		await a.evaluate(() => {
+			window.__sameDocument = true
+			document.getElementById('live').__original = true
+			window.__reconnects = 0
+			document.addEventListener('datastar-fetch', ({ detail: d }) => {
+				if (d.type === 'datastar-patch-elements' && d.argsRaw?.selector === 'body' && d.argsRaw?.mode === 'append' && d.argsRaw?.elements?.includes('cloneNode')) window.__reconnects++
+			})
+		})
+
+		await srv.stop() // SIGTERM: the stream's last event is sse.Reconnect('live')
+		await a.waitForFunction(() => window.__reconnects > 0, null, { timeout: 5000 })
+		await a.locator('.offline').waitFor({ timeout: 5000 })
+		await srv.start()
+		await a.locator('.offline').waitFor({ state: 'hidden', timeout: 15000 })
+		const reconnected = aStreams.started
+
+		const state = await a.evaluate(() => ({
+			sameDocument: window.__sameDocument === true,
+			reconnects: window.__reconnects,
+			lives: document.querySelectorAll('#live').length,
+			original: document.getElementById('live').__original === true,
+			leftovers: [...document.querySelectorAll('[data-init]')].filter((el) => el.dataset.init.includes('cloneNode')).length,
+		}))
+		assert.deepEqual(state, { sameDocument: true, reconnects: 1, lives: 1, original: false, leftovers: 0 }, 'a copy of #live reopened the stream, without a reload')
+
+		// A second client changes the board; the open page shows it.
+		const b = await login(browser, srv.base, 'ben@example.com')
+		pages.push(b)
+		const bStreams = watchStreams(b)
+		await openBoard(b, srv.base)
+		await addCard(b, 'Doing', 'After the deploy')
+		await card(a, 'After the deploy').waitFor({ timeout: 5000 })
+
+		await sleep(1000) // time for a second stream, if any, to start
+		assert.deepEqual(aStreams.byTab(), { [aStreams.tab]: 1 }, 'one stream for the page that reconnected')
+		assert.equal(aStreams.started, reconnected, 'no stream opened since the reconnect')
+		assert.deepEqual(bStreams.byTab(), { [bStreams.tab]: 1 }, 'one stream for the second page')
+		const health = await (await fetch(srv.base + '/_health')).json()
+		assert.equal(health.live.streams, 2, 'the server holds one stream per tab')
+		noErrors(a, b)
+	} finally {
+		for (const p of pages) await p.context().close()
+		await srv.stop()
+	}
+})
+
 test('security: other boards, other sites, no session', async () => {
 	const p = await login(browser, server.base, 'anna@example.com')
 	const cookies = await p.context().cookies()

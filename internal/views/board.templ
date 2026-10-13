@@ -22,6 +22,10 @@ type BoardShell struct {
 // (lith's HeartbeatSignal), with a number that grows.
 const PingSignal = "_ping"
 
+// StreamID is the element whose data-init opens the stream. On a deploy the
+// stream's last event (lith's Spec.Reconnect) replaces it with a copy.
+const StreamID = "live"
+
 // signalsFor are the page's signals. card and outbox go to the server with
 // the stream's request: a stream that reconnects carries on where the page is.
 func signalsFor(tab string, open, outbox int64) string {
@@ -32,7 +36,7 @@ func signalsFor(tab string, open, outbox int64) string {
 // away marks the page as offline until the next frame; an action that
 // can't reach the server says so while Datastar retries it (op ids make a
 // retry safe), and one that finally fails is marked failed, not pending.
-const fetchEvents = `evt.detail.el?.id === 'live'
+const fetchEvents = `evt.detail.el?.id === '` + StreamID + `'
 	? (['retrying', 'retries-failed'].includes(evt.detail.type) && ($_offline = true))
 	: evt.detail.type === 'retrying' ? ($_net = 'Can’t reach the server. Trying again…')
 	: evt.detail.type === 'finished' ? ($_net.startsWith('Can’t reach') && ($_net = ''))
@@ -42,10 +46,11 @@ const fetchEvents = `evt.detail.el?.id === 'live'
 			? 'The server couldn’t take that change, so nothing was saved. Reload the page and try again.'
 			: 'That change didn’t reach the server, so nothing was saved. Check your connection and try again.')`
 
-// The stream reconnects after any end, a server restart included. Its
-// own element starts it, so a new one replaces the old (requestCancellation).
+// retry 'error' retries failures without end (a restart's 502s and 503s too)
+// but leaves a stream the server ended closed; a deploy re-creates StreamID.
+// A new request to the URL cancels the one in flight (requestCancellation).
 func streamExpr(board int64, tab string) string {
-	return "@get(" + js(boardURL(board, "/live?tab="+tab)) + ", {retry: 'always', retryMaxCount: Infinity, retryMaxWait: 10000})"
+	return "@get(" + js(boardURL(board, "/live?tab="+tab)) + ", {retry: 'error', retryMaxCount: Infinity, retryMaxWait: 10000})"
 }
 
 // beat notes a sign of life: a heartbeat, or a new stream's first frame
@@ -81,7 +86,7 @@ templ BoardPage(s BoardShell) {
 			}
 			<style id="pending-style" data-text={ PendingStyle }></style>
 			<p id="pending-status" class="sr-only" role="status" data-text="Object.values($_pend).some(op => op && !$_acks[op]) ? 'Saving…' : ''"></p>
-			<div id="live" hidden data-init={ "$_beat = Date.now(); " + streamExpr(s.Board.ID, s.Tab) } data-on-interval__duration.10s={ watchdog(s.Board.ID, s.Tab) } data-effect={ beat }></div>
+			<div id={ StreamID } hidden data-init={ "$_beat = Date.now(); " + streamExpr(s.Board.ID, s.Tab) } data-on-interval__duration.10s={ watchdog(s.Board.ID, s.Tab) } data-effect={ beat }></div>
 			<p id="board-help" class="sr-only">Press Enter to open a card. To move it, hold Alt and press the arrow keys; releasing Alt sends the move, Escape cancels it.</p>
 			<main id="main" class="board-scroll">
 				@templ.Raw(string(s.Lanes))

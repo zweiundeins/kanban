@@ -20,7 +20,8 @@ import (
 
 // stream is the page's live view: the whole board after every change, who
 // is on it, its card's dialog, and its own messages. The page sends the
-// card it shows and the last message it has in Datastar's signals.
+// card it shows and the last message it has in Datastar's signals. On a
+// deploy the stream ends with sse.Reconnect, so the page opens it again.
 func (s *Server) stream(w http.ResponseWriter, r *http.Request) {
 	u := userOf(r)
 	if u == nil {
@@ -48,6 +49,7 @@ func (s *Server) stream(w http.ResponseWriter, r *http.Request) {
 		ID:        app.TabTopic(u.ID, tab),
 		Views:     []lithlive.View{s.tabView(u.ID, tab, page.Outbox), s.boardView(board), s.presenceView(board)},
 		WriteTick: live.NewStream(u.ID, seat, page.Outbox).WriteTick,
+		Reconnect: views.StreamID,
 	})
 	if err != nil && r.Context().Err() == nil {
 		s.Log.Debug("stream ended", "board", board, "err", err)
