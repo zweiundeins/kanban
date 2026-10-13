@@ -44,6 +44,7 @@ The demo accounts are `anna@example.com`, `ben@example.com`, `chiara@example.com
 - `-reset-at 03:00` to put a public demo back to the seed every night, in process, keeping the accounts
 - `-synchronous NORMAL` (faster, but can lose the last commits on power loss)
 - `-brotli-level` and `-brotli-lgwin`, for the streams that get brotli
+- `-zstd-level` (`fastest`, lith's default, `default`, `better` or `best`), for the streams that get zstd
 
 `kanban backup -db … -to …` writes a consistent copy while the server runs.
 

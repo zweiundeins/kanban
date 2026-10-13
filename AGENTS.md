@@ -29,7 +29,7 @@ It runs on lith (`github.com/zweiundeins/lith`, replaced by `/develop/lith` in g
 
 - `go tool task dev` (air), `go tool task test` (vet, gofmt, `go test -race`), `go tool task e2e` (needs Chromium; `CHROME=` to point at it), `go tool task build`.
 - `go tool templ generate` after editing `.templ` files; the generated `_templ.go` files are committed.
-- Load test: `benchmarks/scripts/load.sh` (three runs each of 50 and 200 tabs, server and load tool on separate cores; `KANBAN=<binary>` runs another build, `CONFIGS` and `ACCEPT` pick the runs and the streams' Accept-Encoding), then `python3 benchmarks/scripts/summarize-load.py <folder>`. One run by hand: `kanban serve -action-limit 0 …`, then `go tool task load -- -base http://127.0.0.1:8080 -tabs 200 -interval 250ms`. The load tool sends Chrome's Accept-Encoding, so a new server answers zstd; it needs more CPU to decode zstd than brotli, so give it cores.
+- Load test: `benchmarks/scripts/load.sh` (three runs each of 50 and 200 tabs, server and load tool on separate cores; `KANBAN=<binary>` runs another build, `SERVER_ARGS` adds flags to its `serve` (`-zstd-level default`), `LOADTEST` takes a load tool built before, `CONFIGS` and `ACCEPT` pick the runs and the streams' Accept-Encoding), then `python3 benchmarks/scripts/summarize-load.py <folder>`. One run by hand: `kanban serve -action-limit 0 …`, then `go tool task load -- -base http://127.0.0.1:8080 -tabs 200 -interval 250ms`. The load tool sends Chrome's Accept-Encoding, so a new server answers zstd; it needs more CPU to decode zstd than brotli, so give it cores.
 
 ## Gotchas
 

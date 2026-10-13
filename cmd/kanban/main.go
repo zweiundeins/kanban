@@ -23,6 +23,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/klauspost/compress/zstd"
 	"github.com/zweiundeins/lith/edge"
 	lithlive "github.com/zweiundeins/lith/live"
 	"github.com/zweiundeins/lith/sse"
@@ -36,10 +37,10 @@ import (
 )
 
 type config struct {
-	addr, dbPath, sync, origins, adminEmail, adminPassword, resetAt, to, static string
-	secure, debug                                                               bool
-	throttle                                                                    time.Duration
-	lgwin, level, actions                                                       int
+	addr, dbPath, sync, origins, adminEmail, adminPassword, resetAt, to, static, zstdLevel string
+	secure, debug                                                                          bool
+	throttle                                                                               time.Duration
+	lgwin, level, actions                                                                  int
 }
 
 func main() {
@@ -64,6 +65,7 @@ func main() {
 	// (0.7 GB RSS), 4 sends 1.0 kB (0.95 GB), 5 sends 0.7 kB (1.2 GB).
 	fsf.IntVar(&c.lgwin, "brotli-lgwin", 18, "brotli window of the live streams (log2 bytes, 10 to 24)")
 	fsf.IntVar(&c.level, "brotli-level", 4, "brotli quality of the live streams (1 to 11)")
+	fsf.StringVar(&c.zstdLevel, "zstd-level", "fastest", "zstd level of the live streams: fastest, default, better or best")
 	fsf.IntVar(&c.actions, "action-limit", 300, "actions one user may send per 10 s (0: no limit, for load tests)")
 	fsf.StringVar(&c.resetAt, "reset-at", env("KANBAN_RESET_AT", ""), "serve: put the demo boards back to the seed every day at HH:MM UTC (a public demo)")
 	fsf.StringVar(&c.to, "to", "", "backup: the file to write")
@@ -160,6 +162,11 @@ func serve(c config, log *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	ok, zstdLevel := zstd.EncoderLevelFromString(c.zstdLevel)
+	if !ok {
+		return fmt.Errorf("-zstd-level %q: want fastest, default, better or best", c.zstdLevel)
+	}
+
 	// The writer tells the hub what each commit changed; the hub reads
 	// from the database's pool. No command is sent before hub is set.
 	var hub *lithlive.Hub
@@ -172,7 +179,7 @@ func serve(c config, log *slog.Logger) error {
 		Tick:            c.throttle,
 		HeartbeatSignal: views.PingSignal,
 		Log:             log,
-		SSE:             sse.Options{BrotliQuality: c.level, BrotliWindow: c.lgwin},
+		SSE:             sse.Options{BrotliQuality: c.level, BrotliWindow: c.lgwin, ZstdLevel: zstdLevel},
 	})
 	hubCtx, stopStreams := context.WithCancel(context.Background())
 	defer stopStreams()
