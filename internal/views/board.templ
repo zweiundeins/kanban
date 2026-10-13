@@ -17,10 +17,14 @@ type BoardShell struct {
 	Detail   []byte
 }
 
+// PingSignal is the signal the stream's heartbeat patches every 20 s
+// (lith's HeartbeatSignal), with a number that grows.
+const PingSignal = "_ping"
+
 // signalsFor are the page's signals. card and outbox go to the server with
 // the stream's request: a stream that reconnects carries on where the page is.
 func signalsFor(tab string, open int64) string {
-	return `{"_tab":` + js(tab) + `,"card":` + id(open) + `,"outbox":0,"_pend":{},"_acks":{},"_edit":"","_val":"","_in":{},"_net":"","_offline":false,"_beat":0,"_ping":0}`
+	return `{"_tab":` + js(tab) + `,"card":` + id(open) + `,"outbox":0,"_pend":{},"_acks":{},"_edit":"","_val":"","_in":{},"_net":"","_offline":false,"_beat":0,"` + PingSignal + `":0}`
 }
 
 // fetchEvents watches every request. The stream (on this element) going
@@ -43,9 +47,12 @@ func streamExpr(board int64, tab string) string {
 	return "@get(" + js(boardURL(board, "/live?tab="+tab)) + ", {retry: 'always', retryMaxCount: Infinity, retryMaxWait: 10000})"
 }
 
-// The server pings every 20 s. A connection that went quiet without
-// closing (a laptop waking up, a new network) is noticed after 50 s and
-// replaced.
+// beat notes a sign of life: a heartbeat, or a new stream's first frame
+// clearing $_offline (its first heartbeat comes only 20 s later).
+const beat = "$" + PingSignal + ", $_offline, $_beat = Date.now()"
+
+// A connection that went quiet without closing (a laptop waking up, a new
+// network) is noticed after 50 s and replaced.
 func watchdog(board int64, tab string) string {
 	return "Date.now() - $_beat > 50000 && ($_offline = true, $_beat = Date.now(), " + streamExpr(board, tab) + ")"
 }
@@ -73,7 +80,7 @@ templ BoardPage(s BoardShell) {
 			}
 			<style id="pending-style" data-text={ PendingStyle }></style>
 			<p id="pending-status" class="sr-only" role="status" data-text="Object.values($_pend).some(op => op && !$_acks[op]) ? 'Saving…' : ''"></p>
-			<div id="live" hidden data-init={ "$_beat = Date.now(); " + streamExpr(s.Board.ID, s.Tab) } data-on-interval__duration.10s={ watchdog(s.Board.ID, s.Tab) } data-effect="$_ping, $_beat = Date.now()"></div>
+			<div id="live" hidden data-init={ "$_beat = Date.now(); " + streamExpr(s.Board.ID, s.Tab) } data-on-interval__duration.10s={ watchdog(s.Board.ID, s.Tab) } data-effect={ beat }></div>
 			<p id="board-help" class="sr-only">Press Enter to open a card. To move it, hold Alt and press the arrow keys; releasing Alt sends the move, Escape cancels it.</p>
 			<main id="main" class="board-scroll">
 				@templ.Raw(string(s.Lanes))

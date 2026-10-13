@@ -30,6 +30,7 @@ import (
 	"kanban/internal/app"
 	"kanban/internal/db"
 	"kanban/internal/live"
+	"kanban/internal/views"
 	"kanban/internal/web"
 	webfiles "kanban/web"
 )
@@ -167,10 +168,11 @@ func serve(c config, log *slog.Logger) error {
 		return err
 	}
 	hub = lithlive.New(lithlive.Options{
-		Read: d.R,
-		Tick: c.throttle,
-		Log:  log,
-		SSE:  sse.Options{BrotliQuality: c.level, BrotliWindow: c.lgwin},
+		Read:            d.R,
+		Tick:            c.throttle,
+		HeartbeatSignal: views.PingSignal,
+		Log:             log,
+		SSE:             sse.Options{BrotliQuality: c.level, BrotliWindow: c.lgwin},
 	})
 	hubCtx, stopStreams := context.WithCancel(context.Background())
 	defer stopStreams()

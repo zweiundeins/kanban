@@ -3,6 +3,7 @@ package web
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
@@ -23,6 +24,7 @@ import (
 	"kanban/internal/app"
 	"kanban/internal/db"
 	"kanban/internal/live"
+	"kanban/internal/views"
 	webfiles "kanban/web"
 )
 
@@ -36,7 +38,7 @@ func testServer(t *testing.T, path string) (*httptest.Server, *app.App, func()) 
 		t.Fatal(err)
 	}
 	log := slog.New(slog.DiscardHandler)
-	hub = lithlive.New(lithlive.Options{Read: d.R, Tick: 5 * time.Millisecond, Log: log})
+	hub = lithlive.New(lithlive.Options{Read: d.R, Tick: 5 * time.Millisecond, Heartbeat: 50 * time.Millisecond, HeartbeatSignal: views.PingSignal, Log: log})
 	ctx, stopHub := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() { done <- hub.Run(ctx) }()
@@ -209,5 +211,44 @@ func TestOutcomeAfterFrameAndAcrossRestarts(t *testing.T) {
 	seen = until(t, events, `"m2":`)
 	if strings.Contains(fmt.Sprint(seen), `"m1":`) {
 		t.Fatalf("a message the page has came again: %v", short(seen))
+	}
+}
+
+// The page's watchdog watches the heartbeat's signal: every heartbeat
+// patches it with a bigger number.
+func TestHeartbeatPatchesThePing(t *testing.T) {
+	srv, a, stop := testServer(t, filepath.Join(t.TempDir(), "k.db"))
+	defer stop()
+	token, _, err := a.Login(context.Background(), "anna@example.com", "demo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookie := sessionCookie + "=" + token
+	req, _ := http.NewRequest("GET", srv.URL+"/boards/1", nil)
+	req.Header.Set("Cookie", cookie)
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, _ := io.ReadAll(res.Body)
+	res.Body.Close()
+	if !strings.Contains(string(page), `data-effect="$`+views.PingSignal+`, `) || !strings.Contains(string(page), `&#34;`+views.PingSignal+`&#34;:0`) {
+		t.Fatalf("the page doesn't watch $%s", views.PingSignal)
+	}
+
+	events, close := openStream(t, srv.URL, cookie, "heartbeat-tab-000001", `{"card":0,"outbox":0}`)
+	defer close()
+	var pings []int64
+	for len(pings) < 3 {
+		ev := until(t, events, `"`+views.PingSignal+`":`)
+		var sig map[string]int64
+		data := strings.TrimPrefix(strings.TrimSpace(ev[len(ev)-1].data), "signals ")
+		if err := json.Unmarshal([]byte(data), &sig); err != nil {
+			t.Fatalf("%q: %v", data, err)
+		}
+		pings = append(pings, sig[views.PingSignal])
+	}
+	if pings[0] >= pings[1] || pings[1] >= pings[2] {
+		t.Fatalf("the heartbeat's numbers don't grow: %v", pings)
 	}
 }

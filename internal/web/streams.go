@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	lithlive "github.com/zweiundeins/lith/live"
 	"github.com/zweiundeins/lith/sse"
@@ -48,7 +47,7 @@ func (s *Server) stream(w http.ResponseWriter, r *http.Request) {
 		ID: app.TabTopic(u.ID, tab),
 		// The tab comes first: messages that a board frame of the same
 		// tick releases then go out in one write with it.
-		Views: []lithlive.View{s.tabView(u.ID, tab), s.boardView(board), s.presenceView(board), pingView},
+		Views: []lithlive.View{s.tabView(u.ID, tab), s.boardView(board), s.presenceView(board)},
 		Write: live.NewStream(u.ID, seat, page.Outbox).Write,
 	})
 	if err != nil && r.Context().Err() == nil {
@@ -163,11 +162,3 @@ func withOutbox(signals string, id int64) []byte {
 	}
 	return append(b, rest...)
 }
-
-// pingView tells the page's watchdog that its stream is alive, and keeps
-// proxies from closing a quiet one. lith's own heartbeat is an SSE
-// comment, which the page never sees.
-var pingView = lithlive.View{Key: "ping", Every: 20 * time.Second, Render: func(context.Context, *sql.Tx) (any, error) {
-	ping := strconv.AppendInt([]byte(`{"_ping":`), time.Now().Unix(), 10)
-	return sse.PatchSignals(append(ping, '}'), false), nil
-}}
