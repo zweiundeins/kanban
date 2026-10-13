@@ -26,7 +26,7 @@ Compared with PLANKA, there are no card members, search or filters, other board 
 
 ## Run it
 
-Needs Go 1.26 or later. Chromium and Node 24 are only needed for the end-to-end tests.
+Needs Go 1.27 or later. Chromium and Node 24 are only needed for the end-to-end tests.
 
 ```sh
 go tool task dev        # seed data/kanban.db if needed, run with live reload on http://127.0.0.1:8080
