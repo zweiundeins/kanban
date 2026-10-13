@@ -204,7 +204,7 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 	err := s.App.DB.R.QueryRowContext(r.Context(), "SELECT 1").Scan(&one)
 	var ms runtime.MemStats
 	runtime.ReadMemStats(&ms)
-	ws, ls, cards := s.App.DB.W.Stats(), s.Hub.Stats(), s.Render.cards.Stats()
+	ws, ls, cards, rs := s.App.DB.W.Stats(), s.Hub.Stats(), s.Render.cards.Stats(), s.App.DB.R.Stats()
 	body := map[string]any{
 		"ok":         err == nil,
 		"memory":     map[string]uint64{"heap_alloc": ms.HeapAlloc, "heap_sys": ms.HeapSys, "sys": ms.Sys, "gc_cycles": uint64(ms.NumGC), "total_alloc": ms.TotalAlloc},
@@ -222,6 +222,7 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 			"frames_sent": ls.FramesSent, "frames_skipped": ls.FramesDropped,
 		},
 		"card_cache": map[string]any{"hits": cards.Hits, "misses": cards.Misses, "entries": cards.Entries, "bytes": cards.Bytes},
+		"read_pool":  map[string]any{"size": rs.MaxOpenConnections, "in_use": rs.InUse, "waits": rs.WaitCount, "wait_nanos": rs.WaitDuration.Nanoseconds()},
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")

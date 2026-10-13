@@ -12,7 +12,6 @@ import (
 	"io/fs"
 	"log/slog"
 	"os"
-	"runtime"
 	"sync"
 
 	"github.com/zweiundeins/lith/sqlite"
@@ -36,8 +35,9 @@ type Options struct {
 	// durable as PostgreSQL's defaults; NORMAL is faster and can lose the
 	// last commits on power loss, never on a crash of the process.
 	Synchronous string
-	// Readers is the size of the read pool (default: two per CPU, since
-	// each render worker of the live hub holds one).
+	// Readers is the size of the read pool (default lith's: GOMAXPROCS
+	// + 4, at least 8, which leaves four or more beside the live hub's
+	// render workers, one per CPU, each holding one).
 	Readers int
 	// OnCommit gets the topics of every committed batch (the live hub's
 	// Changed).
@@ -59,9 +59,6 @@ type DB struct {
 func Open(ctx context.Context, path string, opts Options) (*DB, error) {
 	if opts.Synchronous == "" {
 		opts.Synchronous = "FULL"
-	}
-	if opts.Readers <= 0 {
-		opts.Readers = 2 * runtime.GOMAXPROCS(0)
 	}
 	sd, err := sqlite.Open(ctx, path, sqlite.Options{
 		Synchronous: opts.Synchronous,

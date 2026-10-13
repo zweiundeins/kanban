@@ -391,6 +391,9 @@ func main() {
 			"ms_per_render":   d("live", "render_nanos") / max(d("live", "renders"), 1) / 1e6,
 			"frames_sent":     d("live", "frames_sent"),
 			"frames_skipped":  d("live", "frames_skipped"),
+			"read_pool_size":  num(after, "read_pool", "size"),
+			"read_waits":      d("read_pool", "waits"),
+			"ms_read_wait":    d("read_pool", "wait_nanos") / max(d("read_pool", "waits"), 1) / 1e6,
 		}
 	}
 	js, _ := json.MarshalIndent(r, "", "  ")
