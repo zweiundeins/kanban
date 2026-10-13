@@ -8,6 +8,8 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/zweiundeins/lith/sqlite"
+
 	"kanban/internal/db"
 )
 
@@ -167,31 +169,32 @@ func (a *App) LoadBoard(ctx context.Context, id int64) (b *Board, err error) {
 	return b, err
 }
 
-// ReadBoard reads the whole board in tx.
-func ReadBoard(ctx context.Context, tx *sql.Tx, id int64) (*Board, error) {
+// ReadBoard reads the whole board through q: a render's
+// sqlite.QuerierFrom, or a read transaction.
+func ReadBoard(ctx context.Context, q sqlite.Querier, id int64) (*Board, error) {
 	var b Board
-	err := tx.QueryRowContext(ctx, `SELECT b.id, b.name, b.version, p.id, p.name FROM boards b JOIN projects p ON p.id = b.project_id WHERE b.id = ?`, id).
+	err := q.QueryRowContext(ctx, `SELECT b.id, b.name, b.version, p.id, p.name FROM boards b JOIN projects p ON p.id = b.project_id WHERE b.id = ?`, id).
 		Scan(&b.ID, &b.Name, &b.Version, &b.ProjectID, &b.ProjectName)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	} else if err != nil {
 		return nil, err
 	}
-	if b.Siblings, err = boardRefs(ctx, tx, b.ProjectID); err != nil {
+	if b.Siblings, err = boardRefs(ctx, q, b.ProjectID); err != nil {
 		return nil, err
 	}
-	if b.Labels, err = boardLabels(ctx, tx, id); err != nil {
+	if b.Labels, err = boardLabels(ctx, q, id); err != nil {
 		return nil, err
 	}
 	labelByID := make(map[int64]Label, len(b.Labels))
 	for _, l := range b.Labels {
 		labelByID[l.ID] = l
 	}
-	if b.Members, err = boardMembers(ctx, tx, id); err != nil {
+	if b.Members, err = boardMembers(ctx, q, id); err != nil {
 		return nil, err
 	}
 
-	rows, err := tx.QueryContext(ctx, `SELECT id, name, move_version FROM lists WHERE board_id = ? AND archived_at IS NULL ORDER BY position, id`, id)
+	rows, err := q.QueryContext(ctx, `SELECT id, name, move_version FROM lists WHERE board_id = ? AND archived_at IS NULL ORDER BY position, id`, id)
 	if err != nil {
 		return nil, err
 	}
@@ -211,7 +214,7 @@ func ReadBoard(ctx context.Context, tx *sql.Tx, id int64) (*Board, error) {
 	}
 
 	cardLabels := map[int64][]Label{}
-	rows, err = tx.QueryContext(ctx, `
+	rows, err = q.QueryContext(ctx, `
 		SELECT cl.card_id, cl.label_id FROM card_labels cl
 		JOIN cards c ON c.id = cl.card_id
 		WHERE c.board_id = ? AND c.archived_at IS NULL
@@ -232,7 +235,7 @@ func ReadBoard(ctx context.Context, tx *sql.Tx, id int64) (*Board, error) {
 	rows.Close()
 
 	comments := map[int64]int{}
-	rows, err = tx.QueryContext(ctx, `
+	rows, err = q.QueryContext(ctx, `
 		SELECT cm.card_id, count(*) FROM comments cm
 		JOIN cards c ON c.id = cm.card_id
 		WHERE c.board_id = ? AND c.archived_at IS NULL
@@ -251,7 +254,7 @@ func ReadBoard(ctx context.Context, tx *sql.Tx, id int64) (*Board, error) {
 	}
 	rows.Close()
 
-	rows, err = tx.QueryContext(ctx, `
+	rows, err = q.QueryContext(ctx, `
 		SELECT id, list_id, title, version, move_version, coalesce(due_on, ''), due_done, description != ''
 		FROM cards WHERE board_id = ? AND archived_at IS NULL
 		ORDER BY list_id, position, id`, id)
@@ -276,8 +279,8 @@ func ReadBoard(ctx context.Context, tx *sql.Tx, id int64) (*Board, error) {
 	return &b, nil
 }
 
-func boardRefs(ctx context.Context, tx *sql.Tx, project int64) ([]BoardRef, error) {
-	rows, err := tx.QueryContext(ctx, `SELECT id, name FROM boards WHERE project_id = ? ORDER BY position, id`, project)
+func boardRefs(ctx context.Context, q sqlite.Querier, project int64) ([]BoardRef, error) {
+	rows, err := q.QueryContext(ctx, `SELECT id, name FROM boards WHERE project_id = ? ORDER BY position, id`, project)
 	if err != nil {
 		return nil, err
 	}
@@ -293,8 +296,8 @@ func boardRefs(ctx context.Context, tx *sql.Tx, project int64) ([]BoardRef, erro
 	return out, rows.Err()
 }
 
-func boardLabels(ctx context.Context, tx *sql.Tx, board int64) ([]Label, error) {
-	rows, err := tx.QueryContext(ctx, `SELECT id, name, color FROM labels WHERE board_id = ? ORDER BY name, id`, board)
+func boardLabels(ctx context.Context, q sqlite.Querier, board int64) ([]Label, error) {
+	rows, err := q.QueryContext(ctx, `SELECT id, name, color FROM labels WHERE board_id = ? ORDER BY name, id`, board)
 	if err != nil {
 		return nil, err
 	}
@@ -310,13 +313,13 @@ func boardLabels(ctx context.Context, tx *sql.Tx, board int64) ([]Label, error) 
 	return out, rows.Err()
 }
 
-// ReadMembers reads the board's members in tx, by name.
-func ReadMembers(ctx context.Context, tx *sql.Tx, board int64) ([]User, error) {
-	return boardMembers(ctx, tx, board)
+// ReadMembers reads the board's members through q, by name.
+func ReadMembers(ctx context.Context, q sqlite.Querier, board int64) ([]User, error) {
+	return boardMembers(ctx, q, board)
 }
 
-func boardMembers(ctx context.Context, tx *sql.Tx, board int64) ([]User, error) {
-	rows, err := tx.QueryContext(ctx, `
+func boardMembers(ctx context.Context, q sqlite.Querier, board int64) ([]User, error) {
+	rows, err := q.QueryContext(ctx, `
 		SELECT u.id, u.email, u.name, u.color FROM users u
 		JOIN board_members m ON m.user_id = u.id AND m.board_id = ?
 		ORDER BY u.name`, board)
@@ -344,11 +347,12 @@ func (a *App) LoadCard(ctx context.Context, board, id int64) (c *CardDetail, err
 	return c, err
 }
 
-// ReadCard reads one card with its comments in tx, for the detail view.
-func ReadCard(ctx context.Context, tx *sql.Tx, board, id int64) (*CardDetail, error) {
+// ReadCard reads one card with its comments through q, for the detail
+// view.
+func ReadCard(ctx context.Context, q sqlite.Querier, board, id int64) (*CardDetail, error) {
 	var c CardDetail
 	var archived sql.NullInt64
-	err := tx.QueryRowContext(ctx, `
+	err := q.QueryRowContext(ctx, `
 		SELECT c.id, c.board_id, c.list_id, l.name, c.title, c.description, c.version, c.move_version,
 		       coalesce(c.due_on, ''), c.due_done, c.archived_at, c.created_at,
 		       u.id, u.email, u.name, u.color
@@ -364,10 +368,10 @@ func ReadCard(ctx context.Context, tx *sql.Tx, board, id int64) (*CardDetail, er
 	}
 	c.Archived = archived.Valid
 	c.HasDesc = c.Description != ""
-	if c.BoardLabels, err = boardLabels(ctx, tx, board); err != nil {
+	if c.BoardLabels, err = boardLabels(ctx, q, board); err != nil {
 		return nil, err
 	}
-	rows, err := tx.QueryContext(ctx, `SELECT l.id, l.name, l.color FROM card_labels cl JOIN labels l ON l.id = cl.label_id WHERE cl.card_id = ? ORDER BY l.name, l.id`, id)
+	rows, err := q.QueryContext(ctx, `SELECT l.id, l.name, l.color FROM card_labels cl JOIN labels l ON l.id = cl.label_id WHERE cl.card_id = ? ORDER BY l.name, l.id`, id)
 	if err != nil {
 		return nil, err
 	}
@@ -380,7 +384,7 @@ func ReadCard(ctx context.Context, tx *sql.Tx, board, id int64) (*CardDetail, er
 		c.Labels = append(c.Labels, l)
 	}
 	rows.Close()
-	rows, err = tx.QueryContext(ctx, `
+	rows, err = q.QueryContext(ctx, `
 		SELECT cm.id, cm.body, cm.created_at, u.id, u.email, u.name, u.color
 		FROM comments cm JOIN users u ON u.id = cm.user_id
 		WHERE cm.card_id = ? ORDER BY cm.id`, id)

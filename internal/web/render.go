@@ -3,7 +3,6 @@ package web
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"hash/maphash"
@@ -15,6 +14,7 @@ import (
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
 	lithlive "github.com/zweiundeins/lith/live"
+	"github.com/zweiundeins/lith/sqlite"
 
 	"kanban/internal/app"
 	"kanban/internal/live"
@@ -109,11 +109,11 @@ func (r *Renderer) Presence(members []app.User, present []int64) []byte {
 
 // Detail renders an open card, or the dialog saying it's gone; viewers
 // are the users who have it open.
-func (r *Renderer) Detail(ctx context.Context, tx *sql.Tx, board, card int64, viewers []app.User) ([]byte, error) {
+func (r *Renderer) Detail(ctx context.Context, q sqlite.Querier, board, card int64, viewers []app.User) ([]byte, error) {
 	if card == 0 {
 		return render(views.DetailClosed(board)), nil
 	}
-	c, err := app.ReadCard(ctx, tx, board, card)
+	c, err := app.ReadCard(ctx, q, board, card)
 	if errors.Is(err, app.ErrNotFound) || (err == nil && c.Archived) {
 		return render(views.DetailGone(board)), nil
 	}
@@ -136,12 +136,12 @@ func (r *Renderer) Detail(ctx context.Context, tx *sql.Tx, board, card int64, vi
 	}), nil
 }
 
-// Board renders the board's frame in tx: its lanes, and the dialogs of
+// Board renders the board's frame from q: its lanes, and the dialogs of
 // the cards open in its tabs (open maps each to the users who have it
 // open).
-func (r *Renderer) Board(ctx context.Context, tx *sql.Tx, board int64, open map[int64][]int64) (*live.Board, error) {
+func (r *Renderer) Board(ctx context.Context, q sqlite.Querier, board int64, open map[int64][]int64) (*live.Board, error) {
 	start := time.Now()
-	b, err := app.ReadBoard(ctx, tx, board)
+	b, err := app.ReadBoard(ctx, q, board)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +150,7 @@ func (r *Renderer) Board(ctx context.Context, tx *sql.Tx, board int64, open map[
 		Lanes:   r.Lanes(b),
 		Details: make(map[int64][]byte, len(open)),
 	}
-	if f.Closed, err = r.Detail(ctx, tx, board, 0, nil); err != nil {
+	if f.Closed, err = r.Detail(ctx, q, board, 0, nil); err != nil {
 		return nil, err
 	}
 	for card, users := range open {
@@ -160,7 +160,7 @@ func (r *Renderer) Board(ctx context.Context, tx *sql.Tx, board int64, open map[
 				viewers = append(viewers, m)
 			}
 		}
-		if f.Details[card], err = r.Detail(ctx, tx, board, card, viewers); err != nil {
+		if f.Details[card], err = r.Detail(ctx, q, board, card, viewers); err != nil {
 			return nil, err
 		}
 	}

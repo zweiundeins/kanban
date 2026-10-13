@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	lithlive "github.com/zweiundeins/lith/live"
+	"github.com/zweiundeins/lith/sqlite"
 	"github.com/zweiundeins/lith/sse"
 
 	"kanban/internal/app"
@@ -53,12 +54,21 @@ func (s *Server) stream(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// reads is what a view's Render queries: the statements its worker
+// prepared once, in the render's transaction.
+func reads(ctx context.Context, tx *sql.Tx) sqlite.Querier {
+	if q, ok := sqlite.QuerierFrom(ctx); ok {
+		return q
+	}
+	return tx
+}
+
 // boardView is the board's frame, the same for everyone on it.
 func (s *Server) boardView(board int64) lithlive.View {
 	key := app.BoardTopic(board)
 	var prev *live.Board
 	return lithlive.View{Key: key, Topics: []string{key}, Render: func(ctx context.Context, tx *sql.Tx) (any, error) {
-		f, err := s.Render.Board(ctx, tx, board, s.Seats.OpenCards(board))
+		f, err := s.Render.Board(ctx, reads(ctx, tx), board, s.Seats.OpenCards(board))
 		if err != nil {
 			return nil, err
 		}
@@ -76,7 +86,7 @@ func (s *Server) presenceView(board int64) lithlive.View {
 	key := live.PresenceTopic(board)
 	var prev *live.Presence
 	return lithlive.View{Key: key, Topics: []string{key}, Presence: true, Render: func(ctx context.Context, tx *sql.Tx) (any, error) {
-		members, err := app.ReadMembers(ctx, tx, board)
+		members, err := app.ReadMembers(ctx, reads(ctx, tx), board)
 		if err != nil {
 			return nil, err
 		}
@@ -107,7 +117,7 @@ func (s *Server) tabView(user int64, tab string) lithlive.View {
 	var msgs []live.Message
 	var last int64
 	return lithlive.View{Key: key, Topics: []string{key}, Render: func(ctx context.Context, tx *sql.Tx) (any, error) {
-		rows, err := tx.QueryContext(ctx, `SELECT id, board_id, after, signals, status, toasts FROM tab_outbox
+		rows, err := reads(ctx, tx).QueryContext(ctx, `SELECT id, board_id, after, signals, status, toasts FROM tab_outbox
 			WHERE tab = ? AND user_id = ? AND id > ? ORDER BY id DESC LIMIT ?`, tab, user, last, keepMessages)
 		if err != nil {
 			return nil, err
