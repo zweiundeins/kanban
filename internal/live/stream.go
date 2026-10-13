@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"slices"
 
+	lithlive "github.com/zweiundeins/lith/live"
 	"github.com/zweiundeins/lith/sse"
 )
 
@@ -32,7 +33,8 @@ type Presence struct {
 var online = sse.PatchSignals([]byte(`{"_offline":false}`), false)
 
 // Stream is one page's stream: what it has been sent of the shared frames.
-// Its Write is the hub's Spec.Write, called on the stream's own goroutine.
+// Its WriteTick is the hub's Spec.WriteTick, called on the stream's own
+// goroutine.
 type Stream struct {
 	user int64
 	seat *Seat
@@ -53,12 +55,21 @@ func NewStream(user int64, seat *Seat, pos int64) *Stream {
 	return &Stream{user: user, seat: seat, pos: pos, card: -1}
 }
 
-// Write sends what the page lacks of a view's frame: the lanes it hasn't
-// seen, its card's dialog when that changed, presence when it changed, and
-// the tab's messages once a board frame shows their outcome. The events of
-// one call go out together.
-func (s *Stream) Write(st *sse.Stream, key string, frame any) error {
+// WriteTick sends what the page lacks of a tick's frames, in one
+// compressed write: the lanes it hasn't seen, its card's dialog when that
+// changed, presence when it changed, and the tab's messages once a board
+// frame shows their outcome.
+func (s *Stream) WriteTick(st *sse.Stream, frames []lithlive.Frame) error {
 	s.events = s.events[:0]
+	for _, f := range frames {
+		s.add(f.Value)
+	}
+	err := st.Write(s.events...)
+	clear(s.events)
+	return err
+}
+
+func (s *Stream) add(frame any) {
 	switch f := frame.(type) {
 	case *Board:
 		s.sendBoard(f)
@@ -76,9 +87,6 @@ func (s *Stream) Write(st *sse.Stream, key string, frame any) error {
 	case []byte:
 		s.events = append(s.events, f)
 	}
-	err := st.Write(s.events...)
-	clear(s.events)
-	return err
 }
 
 func (s *Stream) sendBoard(f *Board) {

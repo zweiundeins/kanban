@@ -44,11 +44,9 @@ func (s *Server) stream(w http.ResponseWriter, r *http.Request) {
 	seat := s.Seats.Join(u.ID, board, tab, max(page.Card, 0))
 	defer s.Seats.Leave(seat)
 	err := s.Hub.Serve(w, r, lithlive.Spec{
-		ID: app.TabTopic(u.ID, tab),
-		// The tab comes first: messages that a board frame of the same
-		// tick releases then go out in one write with it.
-		Views: []lithlive.View{s.tabView(u.ID, tab), s.boardView(board), s.presenceView(board)},
-		Write: live.NewStream(u.ID, seat, page.Outbox).Write,
+		ID:        app.TabTopic(u.ID, tab),
+		Views:     []lithlive.View{s.tabView(u.ID, tab), s.boardView(board), s.presenceView(board)},
+		WriteTick: live.NewStream(u.ID, seat, page.Outbox).WriteTick,
 	})
 	if err != nil && r.Context().Err() == nil {
 		s.Log.Debug("stream ended", "board", board, "err", err)

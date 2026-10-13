@@ -10,24 +10,45 @@ import (
 	"testing"
 	"time"
 
+	lithlive "github.com/zweiundeins/lith/live"
 	"github.com/zweiundeins/lith/sse"
 )
 
 // recorder is a page's stream without compression: its events as written.
 type recorder struct {
-	w  *httptest.ResponseRecorder
+	w  *flushes
 	st *sse.Stream
+}
+
+// flushes counts a response's flushes: each write of a stream ends in one.
+type flushes struct {
+	*httptest.ResponseRecorder
+	n int
+}
+
+func (f *flushes) Flush() {
+	f.n++
+	f.ResponseRecorder.Flush()
 }
 
 func newRecorder(t *testing.T) *recorder {
 	t.Helper()
-	w := httptest.NewRecorder()
+	w := &flushes{ResponseRecorder: httptest.NewRecorder()}
 	st, err := sse.Open(w, httptest.NewRequest("GET", "/", nil), sse.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { st.Close() })
 	return &recorder{w: w, st: st}
+}
+
+// write sends frames as one tick.
+func (s *Stream) write(st *sse.Stream, frames ...any) error {
+	tick := make([]lithlive.Frame, len(frames))
+	for i, f := range frames {
+		tick[i].Value = f
+	}
+	return s.WriteTick(st, tick)
 }
 
 // take returns the data of the events written since the last take.
@@ -81,7 +102,7 @@ func TestOutcomeWaitsForTheFrame(t *testing.T) {
 	s := NewStream(1, seat(t, 0), 0)
 	write := func(f any) []string {
 		t.Helper()
-		if err := s.Write(r.st, "", f); err != nil {
+		if err := s.write(r.st, f); err != nil {
 			t.Fatal(err)
 		}
 		return r.take()
@@ -120,10 +141,32 @@ func TestReconnectSendsWhatThePageLacks(t *testing.T) {
 	s := NewStream(1, seat(t, 0), 1)
 	f := board(5, "x")
 	f.Prepare(nil)
-	s.Write(r.st, "", &Tab{Messages: []Message{msg(1, 4, `{"ack":1}`), msg(2, 5, `{"ack":2}`)}})
-	s.Write(r.st, "", f)
+	s.write(r.st, &Tab{Messages: []Message{msg(1, 4, `{"ack":1}`), msg(2, 5, `{"ack":2}`)}})
+	s.write(r.st, f)
 	got := r.take()
 	if len(got) != 4 || got[0] != "elements <b><l1><l2 x><l3></b>" || got[3] != `signals {"ack":2}` {
+		t.Fatalf("got %q", got)
+	}
+}
+
+// A tick's frames go out in one write. The tab's frame comes first, and
+// its outcome still follows the board frame that shows it.
+func TestTickInOneWrite(t *testing.T) {
+	r := newRecorder(t)
+	s := NewStream(1, seat(t, 0), 0)
+	f1, f2 := board(1, "a"), board(2, "b")
+	f1.Prepare(nil)
+	f2.Prepare(f1)
+	s.write(r.st, f1)
+	r.take()
+	n := r.w.n
+	if err := s.write(r.st, &Tab{Messages: []Message{msg(1, 2, `{"ack":1}`)}}, f2, &Presence{Users: []int64{1}, Event: []byte("data: elements 1\n\n")}); err != nil {
+		t.Fatal(err)
+	}
+	if r.w.n != n+1 {
+		t.Fatalf("%d writes for one tick", r.w.n-n)
+	}
+	if got := r.take(); !slices.Equal(got, []string{"elements <b><s1><l2 b><s3></b>", `signals {"ack":1}`, "elements 1"}) {
 		t.Fatalf("got %q", got)
 	}
 }
@@ -171,14 +214,14 @@ func TestCardDialog(t *testing.T) {
 			f.Details[c] = []byte(d)
 		}
 		f.Prepare(prev)
-		s.Write(r.st, "", f)
+		s.write(r.st, f)
 		return f
 	}
 	f := frame(nil, 1, nil)
 	r.take()
 	st.card.Store(9)
 	// Opened after the frame was rendered: the next frame has it.
-	if s.Write(r.st, "", f); len(r.take()) != 0 {
+	if s.write(r.st, f); len(r.take()) != 0 {
 		t.Fatal("sent something for a card the frame lacks")
 	}
 	f = frame(f, 2, map[int64]string{9: "card 9"})
@@ -204,13 +247,13 @@ func TestCardDialog(t *testing.T) {
 func TestPresenceKeepsSelf(t *testing.T) {
 	r := newRecorder(t)
 	s := NewStream(1, seat(t, 0), 0)
-	s.Write(r.st, "", &Presence{Users: []int64{2}, Event: []byte("data: elements 2\n\n")})
+	s.write(r.st, &Presence{Users: []int64{2}, Event: []byte("data: elements 2\n\n")})
 	if got := r.take(); len(got) != 0 {
 		t.Fatalf("sent %q", got)
 	}
 	p := &Presence{Users: []int64{1, 2}, Event: []byte("data: elements 1 2\n\n")}
-	s.Write(r.st, "", p)
-	s.Write(r.st, "", p)
+	s.write(r.st, p)
+	s.write(r.st, p)
 	if got := r.take(); !slices.Equal(got, []string{"elements 1 2"}) {
 		t.Fatalf("sent %q", got)
 	}
