@@ -161,12 +161,10 @@ func (a *App) Projects(ctx context.Context, user int64) ([]Project, error) {
 }
 
 // LoadBoard reads the whole board in a read transaction of its own.
-func (a *App) LoadBoard(ctx context.Context, id int64) (b *Board, err error) {
-	err = a.DB.View(ctx, func(tx *sql.Tx) error {
-		b, err = ReadBoard(ctx, tx, id)
-		return err
+func (a *App) LoadBoard(ctx context.Context, id int64) (*Board, error) {
+	return a.DB.ViewValue(ctx, func(tx *sql.Tx) (*Board, error) {
+		return ReadBoard(ctx, tx, id)
 	})
-	return b, err
 }
 
 // ReadBoard reads the whole board through q: a render's
@@ -339,12 +337,10 @@ func boardMembers(ctx context.Context, q sqlite.Querier, board int64) ([]User, e
 }
 
 // LoadCard reads one card in a read transaction of its own.
-func (a *App) LoadCard(ctx context.Context, board, id int64) (c *CardDetail, err error) {
-	err = a.DB.View(ctx, func(tx *sql.Tx) error {
-		c, err = ReadCard(ctx, tx, board, id)
-		return err
+func (a *App) LoadCard(ctx context.Context, board, id int64) (*CardDetail, error) {
+	return a.DB.ViewValue(ctx, func(tx *sql.Tx) (*CardDetail, error) {
+		return ReadCard(ctx, tx, board, id)
 	})
-	return c, err
 }
 
 // ReadCard reads one card with its comments through q, for the detail

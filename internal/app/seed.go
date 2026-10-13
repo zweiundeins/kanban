@@ -87,43 +87,41 @@ func (a *App) Seed(ctx context.Context, adminEmail, adminPassword string) error 
 // their sessions. Board versions continue from where they were, so open
 // pages simply get the next frame. It returns the boards to refresh.
 func (a *App) Reset(ctx context.Context) ([]int64, error) {
-	var boards []int64
-	err := a.DB.W.Do(ctx, writer.Func(func(tx *writer.Tx) error {
+	return a.DB.W.DoValue(ctx, func(tx *writer.Tx) ([]int64, error) {
 		var maxVersion int64
 		if err := tx.QueryRow(`SELECT coalesce(max(version), 0) FROM boards`).Scan(&maxVersion); err != nil {
-			return err
+			return nil, err
 		}
 		for _, table := range []string{"card_labels", "comments", "cards", "labels", "lists", "board_members", "boards", "projects"} {
 			if _, err := tx.Exec(`DELETE FROM ` + table); err != nil {
-				return err
+				return nil, err
 			}
 		}
 		rows, err := tx.Query(`SELECT id FROM users ORDER BY id`)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		var ids []int64
 		for rows.Next() {
 			var id int64
 			if err := rows.Scan(&id); err != nil {
 				rows.Close()
-				return err
+				return nil, err
 			}
 			ids = append(ids, id)
 		}
 		rows.Close()
-		boards, err = seedBoards(tx, ids, maxVersion)
+		boards, err := seedBoards(tx, ids, maxVersion)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		for _, b := range boards {
 			if err := touch(tx, b); err != nil {
-				return err
+				return nil, err
 			}
 		}
-		return nil
-	}))
-	return boards, err
+		return boards, nil
+	})
 }
 
 var seedTime = time.Date(2026, 9, 1, 9, 0, 0, 0, time.UTC).Unix()

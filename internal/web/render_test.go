@@ -30,10 +30,8 @@ func bigBoard(tb testing.TB) (*app.App, *Renderer) {
 
 func frame(tb testing.TB, a *app.App, r *Renderer, board int64, open map[int64][]int64) *live.Board {
 	tb.Helper()
-	var f *live.Board
-	err := a.DB.View(context.Background(), func(tx *sql.Tx) (err error) {
-		f, err = r.Board(context.Background(), tx, board, open)
-		return err
+	f, err := a.DB.ViewValue(context.Background(), func(tx *sql.Tx) (*live.Board, error) {
+		return r.Board(context.Background(), tx, board, open)
 	})
 	if err != nil {
 		tb.Fatal(err)
