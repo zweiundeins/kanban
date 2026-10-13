@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -16,21 +15,19 @@ import (
 	"github.com/zweiundeins/lith/writer"
 )
 
-// Rejection is a command's refusal, with the reason the user reads. The
+// reject is a command's refusal, with the reason the user reads. The
 // command's changes are undone; the outcome is still recorded for its op.
-type Rejection struct{ Msg string }
-
-func (r *Rejection) Error() string { return r.Msg }
-
-func reject(format string, args ...any) error { return &Rejection{Msg: fmt.Sprintf(format, args...)} }
+func reject(format string, args ...any) error {
+	return &writer.Refusal{Msg: fmt.Sprintf(format, args...)}
+}
 
 // Outcome is what an action came to.
 type Outcome struct {
-	OK       bool   `json:"ok"`
-	Msg      string `json:"msg,omitempty"`    // why it was refused
-	Notice   string `json:"notice,omitempty"` // what happened, for the live region
-	Version  int64  `json:"-"`                // the board version that shows it
-	Replayed bool   `json:"-"`
+	OK       bool
+	Msg      string // why it was refused
+	Notice   string // what happened, for the live region
+	Version  int64  // the board version that shows it
+	Replayed bool
 }
 
 // Actor is who acts, the op id their page gave the action, and the page
@@ -47,74 +44,63 @@ type Actor struct {
 var opRe = regexp.MustCompile(`^[A-Za-z0-9_-]{1,40}$`)
 
 // act runs fn as one writer command on board for actor: membership is
-// checked, a replayed op gets its first outcome, a rejection is recorded
-// like a success, and the outcome is queued for the actor's tab. Only real
-// errors (the database) fail the command. lith's writer.Once would record
-// successes only, and no outcome.
+// checked, lith's OnceResult records the op's answer, a refusal too, so a
+// retried op gets its first one, and the outcome is queued for the actor's
+// tab, a replayed one again. Only real errors (the database) fail the
+// command.
 func (a *App) act(ctx context.Context, actor Actor, board int64, fn func(tx *writer.Tx) (notice string, err error)) (Outcome, error) {
 	if actor.Op != "" && !opRe.MatchString(actor.Op) {
 		return Outcome{}, fmt.Errorf("bad op id")
 	}
+	run := writer.ResultFunc(func(tx *writer.Tx) ([]byte, error) {
+		var member int
+		if err := tx.QueryRow(`SELECT count(*) FROM board_members WHERE board_id = ? AND user_id = ?`, board, actor.User).Scan(&member); err != nil {
+			return nil, err
+		}
+		if member != 1 {
+			return nil, reject("You are not a member of this board.")
+		}
+		notice, err := fn(tx)
+		if err != nil {
+			return nil, err
+		}
+		return []byte(notice), nil
+	})
 	var out Outcome
 	err := a.DB.W.Do(ctx, writer.Func(func(tx *writer.Tx) error {
 		out = Outcome{}
+		var notice []byte
+		var err error
 		if actor.Op != "" {
-			var result string
-			err := tx.QueryRow(`SELECT result, version FROM ops WHERE user_id = ? AND op = ?`, actor.User, actor.Op).Scan(&result, &out.Version)
-			if err == nil {
-				out.Replayed = true
-				if err := json.Unmarshal([]byte(result), &out); err != nil {
-					return err
-				}
-				return reply(tx, actor, board, out)
-			}
-			if !errors.Is(err, sql.ErrNoRows) {
-				return err
-			}
-		}
-		var member int
-		if err := tx.QueryRow(`SELECT count(*) FROM board_members WHERE board_id = ? AND user_id = ?`, board, actor.User).Scan(&member); err != nil {
-			return err
-		}
-		var notice string
-		inner := error(&Rejection{Msg: "You are not a member of this board."})
-		if member == 1 {
-			inner = tx.Savepoint(func(tx *writer.Tx) error {
-				var err error
-				notice, err = fn(tx)
+			op := writer.OnceResult(strconv.FormatInt(actor.User, 10)+":"+actor.Op, run)
+			err = op.Apply(tx)
+			notice, out.Replayed = op.Result(), op.Replayed()
+		} else {
+			err = tx.Savepoint(func(tx *writer.Tx) (err error) {
+				notice, err = run.ApplyResult(tx)
 				return err
 			})
 		}
-		var rej *Rejection
+		var refusal *writer.Refusal
 		switch {
-		case inner == nil:
-			out.OK, out.Notice = true, notice
-		case errors.As(inner, &rej):
-			out.Msg = rej.Msg
+		case err == nil:
+			out.OK, out.Notice = true, string(notice)
+		case errors.As(err, &refusal):
+			out.Msg = refusal.Msg
 		default:
-			return inner
+			return err
 		}
 		if err := tx.QueryRow(`SELECT version FROM boards WHERE id = ?`, board).Scan(&out.Version); err != nil {
 			return err
-		}
-		if actor.Op != "" {
-			result, _ := json.Marshal(out)
-			if _, err := tx.Exec(`INSERT INTO ops (user_id, op, board_id, result, version, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
-				actor.User, actor.Op, board, string(result), out.Version, time.Now().Unix()); err != nil {
-				return err
-			}
 		}
 		return reply(tx, actor, board, out)
 	}))
 	return out, err
 }
 
-// PruneOps forgets outcomes older than a day.
+// PruneOps forgets the answers of ops older than a day.
 func (a *App) PruneOps(ctx context.Context) error {
-	return a.DB.W.Do(ctx, writer.Func(func(tx *writer.Tx) error {
-		_, err := tx.Exec(`DELETE FROM ops WHERE created_at < ?`, time.Now().Add(-24*time.Hour).Unix())
-		return err
-	}))
+	return a.DB.W.Do(ctx, writer.PruneOnce(24*time.Hour))
 }
 
 // BoardTopic names what changes with a board: its lists, cards and labels.

@@ -93,7 +93,7 @@ func (a *App) Reset(ctx context.Context) ([]int64, error) {
 		if err := tx.QueryRow(`SELECT coalesce(max(version), 0) FROM boards`).Scan(&maxVersion); err != nil {
 			return err
 		}
-		for _, table := range []string{"card_labels", "comments", "cards", "labels", "lists", "board_members", "boards", "projects", "ops"} {
+		for _, table := range []string{"card_labels", "comments", "cards", "labels", "lists", "board_members", "boards", "projects"} {
 			if _, err := tx.Exec(`DELETE FROM ` + table); err != nil {
 				return err
 			}
