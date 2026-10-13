@@ -179,7 +179,11 @@ func serve(c config, log *slog.Logger) error {
 		Tick:            c.throttle,
 		HeartbeatSignal: views.PingSignal,
 		Log:             log,
-		SSE:             sse.Options{BrotliQuality: c.level, BrotliWindow: c.lgwin, ZstdLevel: zstdLevel},
+		// The board's frames are about 140 KB, twenty a second: a stream the
+		// budget cannot compress is refused with 503, and the page's retry
+		// 'error' brings it back once there is room.
+		SSE: sse.Options{BrotliQuality: c.level, BrotliWindow: c.lgwin, ZstdLevel: zstdLevel,
+			Budget: sse.NewBudget(sse.BudgetOptions{Refuse: true})},
 	})
 	hubCtx, stopStreams := context.WithCancel(context.Background())
 	defer stopStreams()
