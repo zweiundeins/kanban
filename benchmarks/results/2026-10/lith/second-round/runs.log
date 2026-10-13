@@ -1,0 +1,98 @@
+start 08:54:43:  08:54:43 up 87 days, 21:27,  0 users,  load average: 1.72, 1.17, 2.18
+first gate (load under 3): quiet after 10 s: load 1.58, 0.67 cores busy
+ 08:54:53 up 87 days, 21:27,  0 users,  load average: 1.45, 1.13, 2.15
+writer round 1 08:54:53
+old ^BenchmarkMoveCard$/: others 2.10 cores
+old ^BenchmarkMoveCard$/: others 3.56 cores
+old ^BenchmarkMoveCard$/: others 1.86 cores
+new ^BenchmarkMoveCard$/: others 1.66 cores
+writer round 2 08:57:34
+new ^BenchmarkMoveCard$/: others 2.97 cores
+new ^BenchmarkMoveCard$/: others 2.17 cores
+new ^BenchmarkMoveCard$/: others 2.38 cores
+old ^BenchmarkMoveCard$/: others 2.66 cores
+old ^BenchmarkMoveCard$/: others 1.29 cores
+writer round 3 09:01:44
+old ^BenchmarkMoveCard$/: others 1.81 cores
+new ^BenchmarkMoveCard$/: others 1.26 cores
+writer round 4 09:02:58
+new ^BenchmarkMoveCard$/: others 1.39 cores
+old ^BenchmarkMoveCard$/: others 1.06 cores
+writer round 5 09:04:01
+old ^BenchmarkMoveCard$/: others 1.15 cores
+new ^BenchmarkMoveCard$/: others 1.50 cores
+writer done 09:05:10
+one-person round 1 09:05:10
+old ^BenchmarkMoveCard$/^1$: others 2.25 cores
+old ^BenchmarkMoveCard$/^1$: others 1.66 cores
+new ^BenchmarkMoveCard$/^1$: others 2.79 cores
+new ^BenchmarkMoveCard$/^1$: others 1.48 cores
+one-person round 2 09:06:30
+new ^BenchmarkMoveCard$/^1$: others 2.33 cores
+new ^BenchmarkMoveCard$/^1$: others 2.70 cores
+new ^BenchmarkMoveCard$/^1$: others 1.98 cores
+old ^BenchmarkMoveCard$/^1$: others 2.32 cores
+old ^BenchmarkMoveCard$/^1$: others 2.07 cores
+old ^BenchmarkMoveCard$/^1$: others 1.54 cores
+one-person round 3 09:08:28
+old ^BenchmarkMoveCard$/^1$: others 1.47 cores
+new ^BenchmarkMoveCard$/^1$: others 1.81 cores
+one-person round 4 09:09:03
+new ^BenchmarkMoveCard$/^1$: others 2.19 cores
+new ^BenchmarkMoveCard$/^1$: others 1.63 cores
+old ^BenchmarkMoveCard$/^1$: others 1.55 cores
+one-person round 5 09:10:01
+old ^BenchmarkMoveCard$/^1$: others 1.67 cores
+new ^BenchmarkMoveCard$/^1$: others 1.49 cores
+one-person round 6 09:10:37
+new ^BenchmarkMoveCard$/^1$: others 1.55 cores
+old ^BenchmarkMoveCard$/^1$: others 2.40 cores
+old ^BenchmarkMoveCard$/^1$: others 1.49 cores
+writer1 done 09:11:36
+load round 1 09:11:36
+old-br gate: quiet after 10 s: load 2.36, 0.85 cores busy
+old-br load-200-20261013T091147.json: others 1.37 cores
+new-br gate: quiet after 10 s: load 7.40, 1.78 cores busy
+new-br load-200-20261013T091234.json: others 1.83 cores
+new-zstd gate: quiet after 10 s: load 9.06, 1.79 cores busy
+new-zstd load-200-20261013T091320.json: others 1.51 cores
+new-zstd-default gate: quiet after 10 s: load 8.46, 1.79 cores busy
+new-zstd-default load-200-20261013T091406.json: others 1.45 cores
+load round 2 09:14:42
+new-br gate: quiet after 10 s: load 9.20, 0.77 cores busy
+new-br load-200-20261013T091453.json: others 1.71 cores
+new-zstd gate: quiet after 10 s: load 8.33, 1.68 cores busy
+new-zstd load-200-20261013T091540.json: others 1.90 cores
+new-zstd-default gate: quiet after 10 s: load 7.83, 0.74 cores busy
+new-zstd-default load-200-20261013T091626.json: others 1.52 cores
+old-br gate: quiet after 10 s: load 6.38, 1.88 cores busy
+old-br load-200-20261013T091713.json: others 1.19 cores
+load round 3 09:17:49
+new-zstd gate: quiet after 10 s: load 7.49, 0.93 cores busy
+new-zstd load-200-20261013T091800.json: others 1.54 cores
+new-zstd-default gate: quiet after 10 s: load 7.42, 0.82 cores busy
+new-zstd-default load-200-20261013T091847.json: others 1.55 cores
+old-br gate: quiet after 10 s: load 9.21, 0.83 cores busy
+old-br load-200-20261013T091934.json: others 1.30 cores
+new-br gate: quiet after 10 s: load 8.06, 0.77 cores busy
+new-br load-200-20261013T092021.json: others 1.21 cores
+load round 4 09:20:56
+new-zstd-default gate: quiet after 10 s: load 8.98, 2.04 cores busy
+new-zstd-default load-200-20261013T092107.json: others 1.36 cores
+old-br gate: quiet after 10 s: load 10.05, 1.32 cores busy
+old-br load-200-20261013T092154.json: others 1.31 cores
+new-br gate: quiet after 10 s: load 9.31, 0.85 cores busy
+new-br load-200-20261013T092241.json: others 1.22 cores
+new-zstd gate: quiet after 10 s: load 9.54, 0.65 cores busy
+new-zstd load-200-20261013T092328.json: others 1.25 cores
+load round 5 09:24:04
+old-br gate: quiet after 10 s: load 7.35, 2.12 cores busy
+old-br load-200-20261013T092415.json: others 1.13 cores
+new-br gate: quiet after 10 s: load 8.66, 0.83 cores busy
+new-br load-200-20261013T092502.json: others 1.39 cores
+new-zstd gate: quiet after 10 s: load 8.89, 0.77 cores busy
+new-zstd load-200-20261013T092549.json: others 1.30 cores
+new-zstd-default gate: quiet after 10 s: load 8.13, 0.77 cores busy
+new-zstd-default load-200-20261013T092636.json: others 1.37 cores
+load done 09:27:12
+all-done

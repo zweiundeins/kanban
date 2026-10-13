@@ -1,0 +1,15 @@
+old BenchmarkMoveCard/1-12  	    2353	   3508736 ns/op	         1.000 moves/batch	       285.0 moves/s	         3.484 ms/batch
+old BenchmarkMoveCard/50-12 	   37729	    200157 ns/op	        25.04 moves/batch	      4996 moves/s	         4.997 ms/batch
+old BenchmarkMoveCard/200-12         	   95487	     67264 ns/op	       104.6 moves/batch	     14867 moves/s	         7.007 ms/batch
+old BenchmarkMoveCard/1-12  	    3937	   1805097 ns/op	         1.000 moves/batch	       554.0 moves/s	         1.794 ms/batch
+old BenchmarkMoveCard/50-12 	   52568	    139278 ns/op	        25.02 moves/batch	      7180 moves/s	         3.475 ms/batch
+old BenchmarkMoveCard/200-12         	  125120	     58041 ns/op	       105.0 moves/batch	     17229 moves/s	         6.067 ms/batch
+new BenchmarkMoveCard/1-12  	    1548	   3241997 ns/op	       100.0 KiB-written/move	         1.000 moves/batch	       308.5 moves/s	         3.188 ms/batch
+new BenchmarkMoveCard/50-12 	   30175	    179027 ns/op	         6.894 KiB-written/move	        25.53 moves/batch	      5586 moves/s	         4.436 ms/batch
+new BenchmarkMoveCard/200-12         	  132134	     48565 ns/op	         2.209 KiB-written/move	       110.7 moves/batch	     20591 moves/s	         5.224 ms/batch
+new BenchmarkMoveCard/1-12  	    2883	   2718401 ns/op	       100.8 KiB-written/move	         1.000 moves/batch	       367.9 moves/s	         2.669 ms/batch
+new BenchmarkMoveCard/50-12 	   50816	    112152 ns/op	         6.862 KiB-written/move	        25.48 moves/batch	      8916 moves/s	         2.766 ms/batch
+new BenchmarkMoveCard/200-12         	  122340	     68539 ns/op	         2.156 KiB-written/move	       108.7 moves/batch	     14590 moves/s	         7.224 ms/batch
+old BenchmarkMoveCard/1-12  	    2035	   3336625 ns/op	         1.000 moves/batch	       299.7 moves/s	         3.308 ms/batch
+old BenchmarkMoveCard/50-12 	   45024	    115441 ns/op	        25.01 moves/batch	      8662 moves/s	         2.880 ms/batch
+old BenchmarkMoveCard/200-12         	  124904	     55484 ns/op	       104.3 moves/batch	     18023 moves/s	         5.767 ms/batch

@@ -214,8 +214,57 @@ The 200-tab run with brotli streams, the four builds alternating; N is a build w
 | writer: moves per transaction | 2.3 (2.1 to 2.6) | 2.3 (1.9 to 2.5) | 2.1 (2.0 to 2.2) | 2.0 (1.8 to 2.2) |
 | writer: time per transaction | 2.4 (2.2 to 2.8) ms | 2.6 (2.0 to 2.7) ms | 2.3 (2.1 to 2.4) ms | 2.1 (1.9 to 2.4) ms |
 
-Other agents' builds and tests came and went on the host meanwhile. In the last four rounds the rest of the host used 1.2 to 5.4 cores during a run (`others.txt`), and a run's p95 follows that more than the build: A's went from 11.7 ms with 1.3 cores busy beside it to 27.1 ms with 5.4. These runs cannot tell A from B; their medians lean the way the bench does. At two moves per transaction the index adds a page or two to a commit, which is small against the noise here, and every build is faster than in the first round (see the second round below).
+Other agents' builds and tests came and went on the host meanwhile. In the last four rounds the rest of the host used 1.2 to 5.4 cores during a run (`others.txt`), and a run's p95 follows that more than the build: A's went from 11.7 ms with 1.3 cores busy beside it to 27.1 ms with 5.4. These runs cannot tell A from B; their medians lean the way the bench does. At two moves per transaction the index adds a page or two to a commit, which is small against the noise here. Compare builds only within one set of runs: in the second round below, on a quieter host, the same build as B used 5.1 cores for the same frames and the load tool 3.8 instead of 2.5, so the whole host did less per CPU second then. Its cores, idle between ticks, averaged 2.4 to 3.4 GHz in those brotli runs (they reach 4.8), and how far they ramp up depends on what else the host runs.
 
 B's cost moves to the reads. A render walks every tab's messages since its own last one, about 115 ns each (`scan.txt`: 1,000 messages take 0.19 ms, 100,000 take 11.5 ms). At 200 tabs moving four times a second that is about 200 messages and 25 µs a render; the most is a tab that sat idle beside such a board for the sweep's ten minutes, 480,000 messages and 55 ms, once.
 
 Kept B: it writes the fewest bytes per outcome and adds no statement to a command, and it survives a deploy as A did, since the page reports the last message it got and the new process reads from there (`TestOutcomeAfterFrameAndAcrossRestarts`). C costs a page per transaction more than B, which is most of what A costs when a transaction holds a move or two.
+
+### Second round, 2026-10-13
+
+Since the first round, kanban took up the APIs lith gained meanwhile (commits 04b1e6c to 0f1f88a, on lith fa83bb4; the first round's new binary was built on lith d9e58fb, before its livefix, edge and core merges): the heartbeat as a signal the page's watchdog reads, a tick's frames in one compressed write per stream (`Spec.WriteTick`), renders that query on their worker's prepared statements (`sqlite.QuerierFrom`), op ids recorded with their refusals by `writer.OnceResult`, lith's default read pool, and the outbox without its index on the tab (above). `-zstd-level` sets zstd's level (`sse.Options.ZstdLevel`).
+
+Method as in the first round: the binary and the test binary of 752aaeb against those of 0f1f88a, Go 1.26.5 for both, `CGO_ENABLED=0 -trimpath`, old and new alternating with the order rotating, medians with the lowest and the highest run in brackets. The round started with the load average at 1.6. Every run waited until the rest of the host had used fewer than three cores for ten seconds, and a run during which the rest of the host used more than two was run again, at most twice: `runs.log` lists every run with the cores the rest of the host used, `disturbed/` keeps the runs done again, and `clocks.txt` the mean clock of the server's and the load tool's cores, once a second. Raw data: `results/2026-10/lith/second-round/`.
+
+#### The writer alone
+
+Five rounds of `taskset -c 0-11 ./app.test -test.run X -test.bench '^BenchmarkMoveCard$/' -test.benchtime 5s` for each binary, and six more of the one-person case:
+
+| people moving at once | moves per second, old | new | moves per transaction, old / new | time per transaction, old / new |
+|---|---|---|---|---|
+| 1 | 317 (264 to 368) | 323 (262 to 512) | 1 / 1 | 3.1 / 3.0 ms |
+| 50 | 5,651 (5,241 to 7,524) | 6,055 (5,488 to 9,573) | 25 / 25 | 4.4 / 4.1 ms |
+| 200 | 13,894 (13,074 to 15,005) | 14,928 (13,811 to 17,103) | 104 / 108 | 7.5 / 7.1 ms |
+
+As in the first round, the bench moves without a tab and writes no outcome. One person waits for the fsync either way; with 50 and 200 people the new writer handles 7% more moves.
+
+#### 200 tabs
+
+`load.sh` with a load tool built once from 0f1f88a: the old binary with Chrome's Accept-Encoding, which it answers with brotli; the new one with `br` alone (brotli quality 4, as in the first round); the new one with Chrome's Accept-Encoding at zstd's fastest level, lith's default; and at zstd's default level (`SERVER_ARGS="-zstd-level default"`). Five rounds of four runs:
+
+| | old, brotli | new, brotli | new, zstd fastest | new, zstd default |
+|---|---|---|---|---|
+| moves per second | 790 (789 to 792) | 790 (790 to 794) | 787 (784 to 788) | 785 (784 to 787) |
+| send to 204, p50 | 4.5 (4.4 to 4.7) ms | 4.3 (4.2 to 4.4) ms | 9.9 (6.0 to 11.4) ms | 9.0 (7.6 to 9.8) ms |
+| send to 204, p95 | 12.9 (12.1 to 16.1) ms | 13.1 (12.8 to 18.9) ms | 43.3 (38.0 to 50.9) ms | 40.2 (38.4 to 41.9) ms |
+| send to outcome on the stream, p50 | 57 (56 to 58) ms | 58 (55 to 59) ms | 59 (53 to 61) ms | 58 (56 to 59) ms |
+| send to outcome on the stream, p95 | 100 (99 to 103) ms | 97 (95 to 100) ms | 102 (95 to 109) ms | 100 (96 to 101) ms |
+| frames per tab per second | 18.0 (17.9 to 18.1) | 19.7 (19.6 to 19.7) | 19.6 (19.4 to 19.6) | 19.7 (19.6 to 19.7) |
+| bytes per frame on the wire | 1,010 (1,005 to 1,011) | 967 (961 to 970) | 3,175 (3,154 to 3,193) | 2,243 (2,240 to 2,250) |
+| server CPU | 4.9 (4.9 to 5.0) cores | 5.1 (4.7 to 5.2) cores | 2.7 (2.3 to 2.7) cores | 2.7 (2.5 to 2.7) cores |
+| server memory, peak RSS | 1,162 (1,150 to 1,183) MB | 900 (898 to 902) MB | 821 (820 to 833) MB | 1,267 (1,247 to 1,274) MB |
+| writer: moves per transaction | 2.4 (2.3 to 2.4) | 2.3 (2.3 to 2.4) | 2.6 (2.3 to 2.8) | 2.6 (2.5 to 2.6) |
+| writer: time per transaction | 2.7 (2.6 to 2.8) ms | 2.5 (2.4 to 2.6) ms | 2.9 (2.5 to 3.0) ms | 2.9 (2.7 to 2.9) ms |
+| render: time per board frame | 2.7 (2.7 to 2.9) ms | 3.3 (3.0 to 3.4) ms | 4.5 (3.6 to 4.8) ms | 4.3 (3.9 to 4.6) ms |
+| load tool CPU | 3.9 (3.9 to 3.9) cores | 3.8 (3.5 to 3.9) cores | 5.2 (4.4 to 5.2) cores | 5.1 (4.9 to 5.2) cores |
+
+No move failed or went unanswered. The rest of the host used 1.1 to 1.9 cores during the 200-tab runs, and none had to be done again. During the bench runs the same measure also counts the kernel's work for the bench's own fsyncs; 13 of them were done again.
+
+- **The 204 is back to the old binary's.** With brotli a move's 204 takes 13.1 ms at p95 against the old binary's 12.9, where the first round measured 21.4 against 14.4. Since then the outbox lost its index on the tab (above), and lith's writer, hub and edge changed too; these runs do not separate their shares.
+- **The outcome arrives as soon as with the old binary:** 58 against 57 ms at p50 and 97 against 100 ms at p95, where the first round had 61 against 57 and 103 against 101.
+- **CPU and memory are as in the first round.** With brotli the new server uses 5.1 cores against 4.9 for 9% more frames, peaks at 900 MB against 1,162 and sends 967 bytes a frame against 1,010. Writing a tick's frames in one write did not lower the CPU measurably.
+- **zstd's default level** sends 29% fewer bytes than the fastest level (2,243 against 3,175 a frame) for the same server CPU, 2.7 cores, and peaks 446 MB higher (1,267 against 821 MB), about 2.2 MB more per busy stream. Brotli still sends the fewest bytes, for twice the CPU. Kanban keeps lith's default, the fastest level; `-zstd-level default` makes the trade.
+- **zstd's 204 times are still mostly the load tool's**, which needs 5.1 to 5.2 of its 8 cores to decode zstd against 3.8 for brotli.
+- **The cores ran well below their top clock.** The server's averaged 2.4 to 3.4 GHz in the brotli runs and 1.9 to 2.8 GHz with zstd (`clocks.txt`); they reach 4.8. A less busy server, and a quieter host, get lower clocks and so more CPU seconds per frame.
+
+In short: on current lith, the new binary answers a move and delivers its outcome as fast as the binary before the move, and its writer is 7% faster under load. With brotli it uses 4% more CPU and 23% less memory; with zstd at lith's fastest level, half the CPU for three times brotli's bytes, and at zstd's default level 29% fewer bytes for 2.2 MB more per stream.

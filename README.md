@@ -78,7 +78,7 @@ Conditions: Intel i5-13500, the server on its performance cores and the load too
 
 Most of the server's work under load is compressing: every stream compresses every frame for itself. Each busy stream holds about 2.2 MB of brotli state at quality 4; 200 quiet tabs need 150 MB in all. `-brotli-level 3` needs about a quarter less memory and sends about 60% more bytes per frame.
 
-These are the numbers from before the move onto lith; [benchmarks/RESULTS.md](benchmarks/RESULTS.md#on-lith-2026-10-13) compares the two (2026-10-13). On lith, at 200 tabs, the outcome arrives after 103 ms at p95 with brotli (953 bytes per frame, 903 MB peak RSS, 5.2 cores) and 105 ms with zstd (3,141 bytes, 825 MB, 2.6 cores). A move's 204 takes longer at p95, 21 ms with brotli, because its outcome is now written to SQLite with it.
+These are the numbers from before the move onto lith; [benchmarks/RESULTS.md](benchmarks/RESULTS.md#on-lith-2026-10-13) compares the two (2026-10-13, two rounds). In the second round on lith, at 200 tabs, the outcome arrives after 97 ms at p95 with brotli (967 bytes per frame, 900 MB peak RSS, 5.1 cores) and 102 ms with zstd (3,175 bytes, 821 MB, 2.7 cores), and a move's 204 takes 13.1 ms at p95 with brotli, as with the binary before the move (12.9 ms).
 
 The writer alone (`go test ./internal/app -bench MoveCard`) handles about 13,800 moves a second when 200 people move at once, about 5,100 with 50, and 240 to 340 for one person, whose every move waits for its own fsync. Before it prepared each statement once (2026-10-08), preparing them again on every call took 41% of its CPU, and it handled about 10,000.
 
