@@ -4,7 +4,7 @@ A collaborative Kanban board, rendered on the server. Several people move cards 
 
 Live demo: [kanban.zweiundeins.gmbh](https://kanban.zweiundeins.gmbh), with the demo accounts below; it goes back to its seed every night at 03:00 UTC.
 
-It is one static Go binary (13.5 MB) with one SQLite file, Datastar in the browser and [Starbase](https://starbase.zweiundeins.gmbh) components for dragging, renaming in place, the card dialog and messages. It is a case study by [zwei und eins](https://zweiundeins.gmbh), compared with [PLANKA](https://planka.app) Community (React, Redux, Sails.js, PostgreSQL, WebSockets).
+It is one static Go binary (14.1 MB) with one SQLite file, Datastar in the browser and [Starbase](https://starbase.zweiundeins.gmbh) components for dragging, renaming in place, the card dialog and messages. It runs on lith, the runtime our Go and SQLite apps share: its single writer, its render loop with shared views, its compressed streams and its request edge. It is a case study by [zwei und eins](https://zweiundeins.gmbh), compared with [PLANKA](https://planka.app) Community (React, Redux, Sails.js, PostgreSQL, WebSockets).
 
 ## What it does
 
@@ -18,11 +18,11 @@ Compared with PLANKA, there are no card members, search or filters, other board 
 
 ## How it works
 
-- **Commands and views (CQRS).** Each action is a `POST` that runs one command and answers `204`. The page learns the outcome from its own stream, which sends the whole board (`view = f(state)`) after every change. A board is rendered at most every 50 ms, once for everyone on it. Unchanged cards come from a cache keyed by their content. A slow connection gets the newest frame instead of a backlog.
-- **Brotli over the stream.** The compression window is larger than a frame, and a frame carries only the lists that changed, so a frame after one move costs 0.5 to 1 kB on the wire. The window is per connection, so each stream compresses for itself; everything else about a frame is done once, and at most half the CPUs compress at a time, so actions never wait behind a burst of frames.
-- **One writer, batched.** All writes go through one goroutine and one SQLite connection. While a batch commits, new commands queue up. The next transaction takes all of them, each in its own savepoint, so one refusal undoes only itself. Checks like "did this card move since the page was drawn" run inside the command, in microseconds, with no lock held across the network. This follows Anders Murphy's findings on SQLite and contention. The writer prepares each statement once on its connection and keeps it, since the driver would parse every statement again on every call. Reads use their own pool. SQLite runs with `synchronous=FULL`, so it is as durable as PostgreSQL's defaults.
+- **Commands and views (CQRS).** Each action is a `POST` that runs one command and answers `204`. The page learns the outcome from its own stream, which sends the whole board (`view = f(state)`) after every change. A board is one view, rendered at most every 50 ms, once for everyone on it, in one read transaction with the dialogs of the cards open in its tabs. Unchanged cards come from a cache keyed by their content. A slow connection gets the newest frame instead of a backlog.
+- **Compressed streams.** A stream compresses with zstd when the browser accepts it, else brotli. The window is larger than a frame and a frame carries only the lists that changed, so a frame after one move costs about half a kilobyte on the wire. The window is per connection, so each stream compresses for itself; everything else about a frame is done once, and at most half the CPUs compress at a time, never while waiting for the network, so actions don't wait behind a burst of frames.
+- **One writer, batched.** All writes go through one goroutine and one SQLite connection. While a batch commits, new commands queue up. The next transaction takes all of them, each in its own savepoint, so one refusal undoes only itself. Checks like "did this card move since the page was drawn" run inside the command, in microseconds, with no lock held across the network. This follows Anders Murphy's findings on SQLite and contention. The writer prepares each statement once on its connection and keeps it, since the driver would parse every statement again on every call, and it checkpoints the WAL between batches. Reads use their own pool. SQLite runs with `synchronous=FULL`, so it is as durable as PostgreSQL's defaults.
 - **No optimistic updates.** A dropped card stays where the server last put it, looking pending, until the frame that shows it in its new place arrives. Meanwhile the board (Starbase's landing marker) opens a gap where the card was dropped and shows a dashed copy there: what the person did, not what the server has done. Then the move's outcome follows on the same stream. A refused move is marked and explained. Every action carries an op id, so a retried request gets the first answer instead of acting twice.
-- **Robust streams.** The stream reconnects after a deploy or restart and always starts with the whole board. A watchdog replaces a connection that went quiet. A banner says when the page may be out of date.
+- **Robust streams.** The stream reconnects after a deploy or restart and always starts with the whole board. An action's outcome is written to SQLite by the same command, so it survives a deploy: the page says which outcome it got last, and the new process sends the rest, after a frame that shows them. A watchdog replaces a connection that went quiet. A banner says when the page may be out of date.
 
 ## Run it
 
@@ -39,12 +39,11 @@ The demo accounts are `anna@example.com`, `ben@example.com`, `chiara@example.com
 
 `kanban serve` takes flags (or `KANBAN_*` environment variables). The main ones:
 - `-addr` and `-db`
-- `-secure` and `-proxied`, behind a TLS proxy
+- `-secure`, behind a TLS proxy (the client's address comes from the proxy's headers when the request arrives over loopback)
 - `-origins` for allowed `Origin` values
 - `-reset-at 03:00` to put a public demo back to the seed every night, in process, keeping the accounts
 - `-synchronous NORMAL` (faster, but can lose the last commits on power loss)
-- `-brotli-level` and `-brotli-lgwin`
-- `-send-slots`, how many streams may compress a frame at once (half the CPUs by default, so actions don't wait behind a burst of frames)
+- `-brotli-level` and `-brotli-lgwin`, for the streams that get brotli
 
 `kanban backup -db … -to …` writes a consistent copy while the server runs.
 
@@ -62,7 +61,7 @@ On SIGTERM the server stops accepting connections, ends the streams and commits 
 
 ## Measured
 
-`cmd/loadtest` opens real streams (brotli, like a browser) and moves random cards on the 200-card board, on schedule. It measures what a person waits for: from sending a move to its outcome arriving on their own stream.
+`cmd/loadtest` opens real streams (compressed as a browser asks) and moves random cards on the 200-card board, on schedule. It measures what a person waits for: from sending a move to its outcome arriving on their own stream.
 
 Conditions: Intel i5-13500, the server on its performance cores and the load tool on its efficiency cores, `synchronous=FULL`, brotli quality 4, medians of three 30-second runs, 2026-10-08 (`benchmarks/scripts/load.sh`).
 
@@ -77,6 +76,8 @@ Conditions: Intel i5-13500, the server on its performance cores and the load too
 | server memory, peak RSS | 258 MB | 1.2 GB |
 
 Most of the server's work under load is compressing: every stream compresses every frame for itself. Each busy stream holds about 2.2 MB of brotli state at quality 4; 200 quiet tabs need 150 MB in all. `-brotli-level 3` needs about a quarter less memory and sends about 60% more bytes per frame.
+
+These are the numbers from before the move onto lith; [benchmarks/RESULTS.md](benchmarks/RESULTS.md#on-lith-2026-10-13) compares the two (2026-10-13). On lith, at 200 tabs, the outcome arrives after 103 ms at p95 with brotli (953 bytes per frame, 903 MB peak RSS, 5.2 cores) and 105 ms with zstd (3,141 bytes, 825 MB, 2.6 cores). A move's 204 takes longer at p95, 21 ms with brotli, because its outcome is now written to SQLite with it.
 
 The writer alone (`go test ./internal/app -bench MoveCard`) handles about 13,800 moves a second when 200 people move at once, about 5,100 with 50, and 240 to 340 for one person, whose every move waits for its own fsync. Before it prepared each statement once (2026-10-08), preparing them again on every call took 41% of its CPU, and it handled about 10,000.
 
