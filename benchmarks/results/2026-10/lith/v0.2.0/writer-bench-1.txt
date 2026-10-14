@@ -1,0 +1,12 @@
+old BenchmarkMoveCard/1-12  	    2150	   3152574 ns/op	        97.11 KiB-written/move	         1.000 moves/batch	       317.2 moves/s	         3.092 ms/batch
+new BenchmarkMoveCard/1-12  	    2037	   2919039 ns/op	        93.34 KiB-written/move	         1.000 moves/batch	       342.6 moves/s	         2.860 ms/batch
+new BenchmarkMoveCard/1-12  	    2272	   3126855 ns/op	        95.80 KiB-written/move	         1.000 moves/batch	       319.8 moves/s	         3.066 ms/batch
+old BenchmarkMoveCard/1-12  	    2922	   3242998 ns/op	       106.5 KiB-written/move	         1.000 moves/batch	       308.4 moves/s	         3.180 ms/batch
+old BenchmarkMoveCard/1-12  	    2412	   3125412 ns/op	        93.08 KiB-written/move	         1.000 moves/batch	       320.0 moves/s	         3.063 ms/batch
+new BenchmarkMoveCard/1-12  	    4746	   3253633 ns/op	        98.11 KiB-written/move	         1.000 moves/batch	       307.3 moves/s	         3.192 ms/batch
+new BenchmarkMoveCard/1-12  	    2167	   3115276 ns/op	        94.65 KiB-written/move	         1.000 moves/batch	       321.0 moves/s	         3.051 ms/batch
+old BenchmarkMoveCard/1-12  	    2432	   3061181 ns/op	        97.52 KiB-written/move	         1.000 moves/batch	       326.7 moves/s	         3.002 ms/batch
+old BenchmarkMoveCard/1-12  	    1876	   3152112 ns/op	        95.43 KiB-written/move	         1.000 moves/batch	       317.2 moves/s	         3.091 ms/batch
+new BenchmarkMoveCard/1-12  	    2080	   2564446 ns/op	       105.4 KiB-written/move	         1.000 moves/batch	       389.9 moves/s	         2.519 ms/batch
+new BenchmarkMoveCard/1-12  	    4636	   3390139 ns/op	       103.1 KiB-written/move	         1.000 moves/batch	       295.0 moves/s	         3.323 ms/batch
+old BenchmarkMoveCard/1-12  	    2269	   3138558 ns/op	       101.7 KiB-written/move	         1.000 moves/batch	       318.6 moves/s	         3.079 ms/batch

@@ -1,0 +1,3 @@
+old BenchmarkMoveCard/1-12  	    2287	   3849294 ns/op	       104.2 KiB-written/move	         1.000 moves/batch	       259.8 moves/s	         3.785 ms/batch
+old BenchmarkMoveCard/50-12 	   36552	    185350 ns/op	         6.901 KiB-written/move	        25.49 moves/batch	      5395 moves/s	         4.572 ms/batch
+old BenchmarkMoveCard/200-12         	  127773	     49132 ns/op	         2.179 KiB-written/move	       112.1 moves/batch	     20354 moves/s	         5.329 ms/batch

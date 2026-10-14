@@ -268,3 +268,62 @@ No move failed or went unanswered. The rest of the host used 1.1 to 1.9 cores du
 - **The cores ran well below their top clock.** The server's averaged 2.4 to 3.4 GHz in the brotli runs and 1.9 to 2.8 GHz with zstd (`clocks.txt`); they reach 4.8. A less busy server, and a quieter host, get lower clocks and so more CPU seconds per frame.
 
 In short: on current lith, the new binary answers a move and delivers its outcome as fast as the binary before the move, and its writer is 7% faster under load. With brotli it uses 4% more CPU and 23% less memory; with zstd at lith's fastest level, half the CPU for three times brotli's bytes, and at zstd's default level 29% fewer bytes for 2.2 MB more per stream.
+
+### On lith v0.2.0, 2026-10-14
+
+Commit 4d7c6f7 requires lith v0.2.0. Its code is that of ba00c84, which requires v0.1.0 and runs in production; only the help of `-brotli-lgwin` and a comment changed, since the flag is now the largest window a stream may take. Between the two versions lith's `sse`, `live` and `edge` changed: the budget books what the streams hold and sizes each window from the frames, a brotli stream flushes its encoder every 32 KiB of a frame, `Refuse` lets a stream in only with room for a window that holds its frame, and the hub keeps no frame of a view that one stream watches. Its `sqlite` and `writer` did not change.
+
+Method as in the second round: the binary and the test binary of ba00c84 against those of 4d7c6f7, Go 1.27.2 for both, `CGO_ENABLED=0 -trimpath`, a load tool built once from 4d7c6f7, the two alternating with the order rotating, medians with the lowest and the highest run in brackets. Every run waited until the rest of the host had used fewer than three cores for ten seconds, and a run during which the rest of the host used more than two was run again (one writer run, in `disturbed/`). The load average was 2.1 when the round started and 7.8 after its last 200-tab run, most of that the runs' own. `round.py` drove the round. Raw data, `runs.log` and `clocks.txt`: `results/2026-10/lith/v0.2.0/`.
+
+#### The writer alone
+
+Five rounds of `taskset -c 0-11 ./app.test -test.run X -test.bench '^BenchmarkMoveCard$/' -test.benchtime 5s` for each binary, and six more of the one-person case:
+
+| people moving at once | moves per second, v0.1.0 | v0.2.0 | moves per transaction, v0.1.0 / v0.2.0 | time per transaction, v0.1.0 / v0.2.0 |
+|---|---|---|---|---|
+| 1 | 317 (280 to 338) | 309 (283 to 390) | 1 / 1 | 3.1 / 3.2 ms |
+| 50 | 5,270 (4,432 to 5,645) | 5,366 (4,579 to 6,053) | 26 / 25 | 4.7 / 4.6 ms |
+| 200 | 13,767 (13,296 to 14,857) | 15,341 (14,822 to 15,741) | 109 / 110 | 7.7 / 6.9 ms |
+
+Both builds run the same writer: lith's `sqlite` and `writer` are the same in v0.1.0 and v0.2.0, and so is kanban's `internal/`. So the 11% between them at 200 people is the spread between two builds on this host.
+
+#### 200 tabs
+
+`KANBAN=<binary> CONFIGS="200 250ms" ACCEPT=<...> benchmarks/scripts/load.sh 1` for each binary, with `br` alone and with Chrome's Accept-Encoding, which both answer with zstd at its fastest level. Five rounds of four runs:
+
+| | v0.1.0, brotli | v0.2.0, brotli | v0.1.0, zstd | v0.2.0, zstd |
+|---|---|---|---|---|
+| moves per second | 790 (788 to 792) | 790 (786 to 790) | 786 (785 to 786) | 786 (785 to 789) |
+| send to 204, p50 | 4.3 (4.2 to 4.6) ms | 4.0 (4.0 to 4.2) ms | 10.0 (9.5 to 10.3) ms | 9.6 (6.7 to 10.1) ms |
+| send to 204, p95 | 12.9 (12.5 to 13.3) ms | 12.1 (11.7 to 12.2) ms | 41.6 (40.9 to 42.8) ms | 40.9 (37.4 to 42.2) ms |
+| send to outcome on the stream, p50 | 59 (58 to 59) ms | 59 (58 to 60) ms | 60 (59 to 60) ms | 59 (54 to 59) ms |
+| send to outcome on the stream, p95 | 98 (97 to 99) ms | 98 (98 to 98) ms | 101 (101 to 102) ms | 101 (95 to 101) ms |
+| frames per tab per second | 19.7 (19.7 to 19.7) | 19.7 (19.7 to 19.7) | 19.6 (19.6 to 19.7) | 19.7 (19.6 to 19.7) |
+| bytes per frame on the wire | 963 (959 to 964) | 1,010 (1,004 to 1,011) | 3,160 (3,157 to 3,169) | 3,162 (3,145 to 3,182) |
+| server CPU | 5.2 (5.1 to 5.2) cores | 5.2 (5.2 to 5.3) cores | 2.7 (2.7 to 2.8) cores | 2.7 (2.4 to 2.7) cores |
+| server memory, peak RSS | 901 (896 to 907) MB | 747 (747 to 751) MB | 822 (809 to 829) MB | 818 (811 to 821) MB |
+| writer: moves per transaction | 2.3 (2.3 to 2.4) | 2.2 (2.2 to 2.3) | 2.6 (2.5 to 2.6) | 2.6 (2.4 to 2.6) |
+| writer: time per transaction | 2.5 (2.4 to 2.6) ms | 2.4 (2.3 to 2.4) ms | 2.8 (2.8 to 2.9) ms | 2.8 (2.7 to 2.9) ms |
+| render: time per board frame | 3.6 (3.5 to 3.7) ms | 3.4 (3.3 to 3.5) ms | 5.1 (4.9 to 5.4) ms | 5.0 (4.1 to 5.0) ms |
+| load tool CPU | 3.9 (3.9 to 4.0) cores | 3.7 (3.7 to 3.8) cores | 5.3 (5.1 to 5.3) cores | 5.2 (4.7 to 5.2) cores |
+
+No move failed or went unanswered, and the hub had all 200 streams open in every run (read from `/_health` 15 s into it). The rest of the host used 0.9 to 1.3 cores during these runs. `load.sh` sets no memory limit, and the host's cgroup has none, so the budget has no limit either: every stream gets the largest tier its options allow, brotli quality 4 at 2^18 with `-brotli-lgwin 18`, and `Refuse` turns none away.
+
+- **A move is answered and delivered as fast as on v0.1.0.** With brotli the 204 takes 12.1 ms at p95 against 12.9, and the outcome arrives after 59 ms at p50 and 98 ms at p95 with both. With zstd both take about 41 ms to the 204 at p95, most of it the load tool's, which needs 5.2 to 5.3 of its 8 cores to decode zstd.
+- **Brotli streams hold less and send a little more.** With brotli, v0.2.0 peaks at 747 MB against 901 and allocates 42 MB a second against 59. With zstd both peak at about 820 MB, so the saving is the brotli encoder's, whose heap no longer grows with the frame now that it flushes every 32 KiB at quality 4. Each flush costs a metablock header: 1,010 bytes a frame against 963.
+- **CPU is the same, and zstd needs about half of brotli's:** 5.2 cores with brotli and 2.7 with zstd, on both versions. The server's cores averaged 2.6 to 3.1 GHz in v0.2.0's brotli runs and 1.9 to 2.4 GHz in v0.1.0's (`clocks.txt`), so the same CPU seconds held more cycles with v0.2.0. With zstd they averaged 1.5 to 2.2 and 1.3 to 1.8 GHz.
+
+#### With production's memory limit
+
+Production runs kanban with `GOMEMLIMIT=600MiB` (`deploy/kanban.service`), so the budget's limit is 300 MiB. The same runs with `GOMEMLIMIT=600MiB` set, two attempts each: the load tool opens its 200 tabs one after another, before any move, and stops at the first stream that gets a 503.
+
+| | v0.1.0, brotli | v0.2.0, brotli | v0.1.0, zstd | v0.2.0, zstd |
+|---|---|---|---|---|
+| tabs let in, of 200 | 140 | 200 | 181 | 173 |
+
+Both attempts let in the same number of tabs.
+
+- **Brotli:** v0.1.0 has one tier for a brotli stream with `-brotli-lgwin 18`, quality 4 at 2^18, and 140 of them fit. v0.2.0 gives a brotli stream quality 4 while the budget is at most half full and quality 3 after that, so all 200 got in. In two runs they sent 1,333 bytes a frame instead of 1,010, peaked at 584 MB, used 5.2 cores and answered a move's 204 in 12.8 ms at p95.
+- **zstd:** v0.2.0 lets a stream in only with room for a window that holds its frame, 2^18 for this board, and books 32 KiB for each stream besides; v0.1.0 let streams in at smaller windows too. So v0.2.0 turns away the 174th tab with Chrome's Accept-Encoding, where v0.1.0 turned away the 182nd. The page opens its stream with `retry: 'error'`, so a refused tab tries again until there is room.
+
+In short: on lith v0.2.0, kanban answers a move and delivers its outcome as fast as on v0.1.0, with the same CPU, and its brotli streams peak 17% lower for 5% more bytes a frame. With production's memory limit, v0.2.0 lets in all 200 brotli tabs instead of 140, and 173 zstd tabs instead of 181.

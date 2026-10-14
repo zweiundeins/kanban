@@ -1,0 +1,133 @@
+start 18:06:55 (all):  18:06:55 up 89 days,  6:39,  0 users,  load average: 2.07, 1.86, 1.79
+writer round 1 18:06:55
+old ^BenchmarkMoveCard$/ gate: quiet after 10 s: load 1.83, 1.35 cores busy
+old ^BenchmarkMoveCard$/: others 2.15 cores (again)
+old ^BenchmarkMoveCard$/ gate: quiet after 10 s: load 1.79, 0.97 cores busy
+old ^BenchmarkMoveCard$/: others 1.27 cores
+new ^BenchmarkMoveCard$/ gate: quiet after 10 s: load 2.01, 1.43 cores busy
+new ^BenchmarkMoveCard$/: others 1.00 cores
+writer round 2 18:08:39
+new ^BenchmarkMoveCard$/ gate: quiet after 10 s: load 1.86, 0.72 cores busy
+new ^BenchmarkMoveCard$/: others 1.42 cores
+old ^BenchmarkMoveCard$/ gate: quiet after 10 s: load 1.79, 0.82 cores busy
+old ^BenchmarkMoveCard$/: others 0.92 cores
+writer round 3 18:09:58
+old ^BenchmarkMoveCard$/ gate: quiet after 10 s: load 2.48, 2.62 cores busy
+old ^BenchmarkMoveCard$/: others 1.29 cores
+new ^BenchmarkMoveCard$/ gate: quiet after 10 s: load 2.14, 0.70 cores busy
+new ^BenchmarkMoveCard$/: others 1.39 cores
+writer round 4 18:11:12
+new ^BenchmarkMoveCard$/ gate: quiet after 10 s: load 1.79, 0.67 cores busy
+new ^BenchmarkMoveCard$/: others 0.92 cores
+old ^BenchmarkMoveCard$/ gate: quiet after 10 s: load 1.57, 0.67 cores busy
+old ^BenchmarkMoveCard$/: others 1.44 cores
+writer round 5 18:12:23
+old ^BenchmarkMoveCard$/ gate: quiet after 10 s: load 1.73, 0.75 cores busy
+old ^BenchmarkMoveCard$/: others 0.98 cores
+new ^BenchmarkMoveCard$/ gate: quiet after 10 s: load 1.79, 1.25 cores busy
+new ^BenchmarkMoveCard$/: others 1.33 cores
+writer done 18:13:32
+one-person round 1 18:13:32
+old ^BenchmarkMoveCard$/^1$ gate: quiet after 10 s: load 2.71, 1.03 cores busy
+old ^BenchmarkMoveCard$/^1$: others 1.25 cores
+new ^BenchmarkMoveCard$/^1$ gate: quiet after 10 s: load 2.67, 0.71 cores busy
+new ^BenchmarkMoveCard$/^1$: others 1.91 cores
+one-person round 2 18:14:06
+new ^BenchmarkMoveCard$/^1$ gate: quiet after 10 s: load 2.74, 1.66 cores busy
+new ^BenchmarkMoveCard$/^1$: others 1.17 cores
+old ^BenchmarkMoveCard$/^1$ gate: quiet after 10 s: load 2.63, 0.72 cores busy
+old ^BenchmarkMoveCard$/^1$: others 1.21 cores
+one-person round 3 18:14:44
+old ^BenchmarkMoveCard$/^1$ gate: quiet after 10 s: load 2.65, 0.65 cores busy
+old ^BenchmarkMoveCard$/^1$: others 1.37 cores
+new ^BenchmarkMoveCard$/^1$ gate: quiet after 10 s: load 2.45, 1.64 cores busy
+new ^BenchmarkMoveCard$/^1$: others 1.65 cores
+one-person round 4 18:15:29
+new ^BenchmarkMoveCard$/^1$ gate: quiet after 10 s: load 2.12, 0.66 cores busy
+new ^BenchmarkMoveCard$/^1$: others 1.25 cores
+old ^BenchmarkMoveCard$/^1$ gate: quiet after 10 s: load 1.80, 0.70 cores busy
+old ^BenchmarkMoveCard$/^1$: others 1.62 cores
+one-person round 5 18:16:05
+old ^BenchmarkMoveCard$/^1$ gate: quiet after 10 s: load 1.93, 1.21 cores busy
+old ^BenchmarkMoveCard$/^1$: others 1.15 cores
+new ^BenchmarkMoveCard$/^1$ gate: quiet after 10 s: load 2.03, 0.70 cores busy
+new ^BenchmarkMoveCard$/^1$: others 1.23 cores
+one-person round 6 18:16:38
+new ^BenchmarkMoveCard$/^1$ gate: quiet after 10 s: load 1.65, 0.59 cores busy
+new ^BenchmarkMoveCard$/^1$: others 1.48 cores
+old ^BenchmarkMoveCard$/^1$ gate: quiet after 10 s: load 2.26, 1.81 cores busy
+old ^BenchmarkMoveCard$/^1$: others 1.27 cores
+writer1 done 18:17:22
+load round 1 18:17:22
+old-br gate: quiet after 10 s: load 2.01, 0.80 cores busy
+old-br load-200-20261014T181733.json: others 1.05 cores, 200 streams open mid-run, exit 0
+new-br gate: quiet after 10 s: load 4.59, 0.65 cores busy
+new-br load-200-20261014T181820.json: others 0.86 cores, 200 streams open mid-run, exit 0
+old-zstd gate: quiet after 10 s: load 6.96, 1.78 cores busy
+old-zstd load-200-20261014T181915.json: others 0.96 cores, 200 streams open mid-run, exit 0
+new-zstd gate: quiet after 10 s: load 6.01, 0.74 cores busy
+new-zstd load-200-20261014T182002.json: others 1.27 cores, 200 streams open mid-run, exit 0
+load round 2 18:20:46
+new-br gate: quiet after 10 s: load 6.81, 0.68 cores busy
+new-br load-200-20261014T182057.json: others 1.10 cores, 200 streams open mid-run, exit 0
+old-zstd gate: quiet after 10 s: load 7.91, 1.29 cores busy
+old-zstd load-200-20261014T182152.json: others 1.22 cores, 200 streams open mid-run, exit 0
+new-zstd gate: quiet after 10 s: load 8.01, 0.76 cores busy
+new-zstd load-200-20261014T182238.json: others 1.24 cores, 200 streams open mid-run, exit 0
+old-br gate: quiet after 10 s: load 7.07, 0.69 cores busy
+old-br load-200-20261014T182333.json: others 1.05 cores, 200 streams open mid-run, exit 0
+load round 3 18:24:09
+old-zstd gate: quiet after 10 s: load 8.25, 0.70 cores busy
+old-zstd load-200-20261014T182420.json: others 0.93 cores, 200 streams open mid-run, exit 0
+new-zstd gate: quiet after 10 s: load 7.94, 1.28 cores busy
+new-zstd load-200-20261014T182507.json: others 1.24 cores, 200 streams open mid-run, exit 0
+old-br gate: quiet after 10 s: load 7.98, 0.69 cores busy
+old-br load-200-20261014T182602.json: others 1.06 cores, 200 streams open mid-run, exit 0
+new-br gate: quiet after 10 s: load 7.07, 0.57 cores busy
+new-br load-200-20261014T182649.json: others 0.98 cores, 200 streams open mid-run, exit 0
+load round 4 18:27:33
+new-zstd gate: quiet after 10 s: load 6.47, 0.68 cores busy
+new-zstd load-200-20261014T182744.json: others 1.01 cores, 200 streams open mid-run, exit 0
+old-br gate: quiet after 10 s: load 6.42, 0.81 cores busy
+old-br load-200-20261014T182839.json: others 1.01 cores, 200 streams open mid-run, exit 0
+new-br gate: quiet after 10 s: load 7.27, 0.58 cores busy
+new-br load-200-20261014T182927.json: others 1.00 cores, 200 streams open mid-run, exit 0
+old-zstd gate: quiet after 10 s: load 7.48, 0.85 cores busy
+old-zstd load-200-20261014T183022.json: others 0.98 cores, 200 streams open mid-run, exit 0
+load round 5 18:30:57
+old-br gate: quiet after 10 s: load 6.35, 1.44 cores busy
+old-br load-200-20261014T183108.json: others 1.07 cores, 200 streams open mid-run, exit 0
+new-br gate: quiet after 10 s: load 6.33, 0.73 cores busy
+new-br load-200-20261014T183155.json: others 1.09 cores, 200 streams open mid-run, exit 0
+old-zstd gate: quiet after 10 s: load 6.07, 0.74 cores busy
+old-zstd load-200-20261014T183250.json: others 1.14 cores, 200 streams open mid-run, exit 0
+new-zstd gate: quiet after 10 s: load 7.10, 0.77 cores busy
+new-zstd load-200-20261014T183337.json: others 1.07 cores, 200 streams open mid-run, exit 0
+load done 18:34:22
+end 18:34:22:  18:34:22 up 89 days,  7:06,  0 users,  load average: 7.83, 7.20, 5.64
+start 18:34:22 (memlimit):  18:34:22 up 89 days,  7:06,  0 users,  load average: 7.83, 7.20, 5.64
+old-br gate: quiet after 10 s: load 6.93, 0.92 cores busy
+old-br (no result): others 0.43 cores, None streams open mid-run, exit 1
+old-br stderr: tab 140 stream: 503 Service Unavailable
+new-br gate: quiet after 10 s: load 1.23, 0.69 cores busy
+new-br load-200-20261014T184157.json: others 1.12 cores, 200 streams open mid-run, exit 0
+old-zstd gate: quiet after 10 s: load 5.07, 0.66 cores busy
+old-zstd (no result): others 0.34 cores, None streams open mid-run, exit 1
+old-zstd stderr: tab 181 stream: 503 Service Unavailable
+new-zstd gate: quiet after 10 s: load 4.25, 1.17 cores busy
+new-zstd (no result): others 1.49 cores, None streams open mid-run, exit 1
+new-zstd stderr: tab 173 stream: 503 Service Unavailable
+end 18:43:15:  18:43:15 up 89 days,  7:15,  0 users,  load average: 4.22, 3.31, 4.09
+start 18:43:34 (memlimit):  18:43:34 up 89 days,  7:15,  0 users,  load average: 3.17, 3.13, 4.01
+old-br gate: quiet after 10 s: load 2.68, 0.80 cores busy
+old-br (no result): others 0.31 cores, None streams open mid-run, exit 1
+old-br stderr: tab 140 stream: 503 Service Unavailable
+new-br gate: quiet after 10 s: load 2.29, 0.66 cores busy
+new-br load-200-20261014T184400.json: others 1.17 cores, 200 streams open mid-run, exit 0
+old-zstd gate: quiet after 10 s: load 5.42, 0.65 cores busy
+old-zstd (no result): others 0.34 cores, None streams open mid-run, exit 1
+old-zstd stderr: tab 181 stream: 503 Service Unavailable
+new-zstd gate: quiet after 10 s: load 4.66, 1.64 cores busy
+new-zstd (no result): others 0.92 cores, None streams open mid-run, exit 1
+new-zstd stderr: tab 173 stream: 503 Service Unavailable
+end 18:45:19:  18:45:19 up 89 days,  7:17,  0 users,  load average: 3.95, 3.55, 4.07
