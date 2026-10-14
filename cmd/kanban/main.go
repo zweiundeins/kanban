@@ -63,7 +63,7 @@ func main() {
 	// Browsers that accept zstd get it, the others brotli. On the 200-card
 	// board with 200 busy streams, brotli quality 3 sends 1.9 kB a frame
 	// (0.7 GB RSS), 4 sends 1.0 kB (0.95 GB), 5 sends 0.7 kB (1.2 GB).
-	fsf.IntVar(&c.lgwin, "brotli-lgwin", 18, "brotli window of the live streams (log2 bytes, 10 to 24)")
+	fsf.IntVar(&c.lgwin, "brotli-lgwin", 18, "the largest brotli window a live stream may take (log2 bytes, 10 to 24)")
 	fsf.IntVar(&c.level, "brotli-level", 4, "brotli quality of the live streams (1 to 11)")
 	fsf.StringVar(&c.zstdLevel, "zstd-level", "fastest", "zstd level of the live streams: fastest, default, better or best")
 	fsf.IntVar(&c.actions, "action-limit", 300, "actions one user may send per 10 s (0: no limit, for load tests)")
@@ -179,9 +179,9 @@ func serve(c config, log *slog.Logger) error {
 		Tick:            c.throttle,
 		HeartbeatSignal: views.PingSignal,
 		Log:             log,
-		// The board's frames are about 140 KB, twenty a second: a stream the
-		// budget cannot compress is refused with 503, and the page's retry
-		// 'error' brings it back once there is room.
+		// The board's frames are about 140 KB, twenty a second: a stream for
+		// which the budget has no window that holds a frame is refused with
+		// 503, and the page's retry 'error' brings it back once there is room.
 		SSE: sse.Options{BrotliQuality: c.level, BrotliWindow: c.lgwin, ZstdLevel: zstdLevel,
 			Budget: sse.NewBudget(sse.BudgetOptions{Refuse: true})},
 	})
