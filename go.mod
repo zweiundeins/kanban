@@ -7,7 +7,7 @@ require (
 	github.com/andybalholm/brotli v1.2.6
 	github.com/klauspost/compress v1.20.3
 	github.com/yuin/goldmark v1.8.6
-	github.com/zweiundeins/lith v0.0.0-00010101000000-000000000000
+	github.com/zweiundeins/lith v0.1.0
 	golang.org/x/crypto v0.58.0
 )
 
@@ -166,5 +166,3 @@ tool (
 	github.com/air-verse/air
 	github.com/go-task/task/v3/cmd/task
 )
-
-replace github.com/zweiundeins/lith => /develop/lith

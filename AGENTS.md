@@ -2,7 +2,7 @@
 
 A collaborative Kanban board in Go, built as the case study planned in `/develop/2und1.ch/docs/case-studies/kanban.md` (with the shared rules in `README.md` there). One static binary, one SQLite file, Datastar on the client, Starbase components. Compared with PLANKA Community.
 
-It runs on lith (`github.com/zweiundeins/lith`, replaced by `/develop/lith` in go.mod): its writer, live hub, sse and edge. The general rules are lith's skill (`skills/lith/SKILL.md` in the lith repo); this file says what is particular to kanban.
+It runs on lith (`github.com/zweiundeins/lith` v0.1.0): its writer, live hub, sse and edge. The general rules are lith's skill (`skills/lith/SKILL.md` in the lith repo); this file says what is particular to kanban.
 
 ## Rules that shape every change
 
