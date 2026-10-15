@@ -1,0 +1,18 @@
+# --- Kanban (github.com/zweiundeins/kanban): the live demo of the case study,
+# back to its seed every night at 03:00 UTC. Separate systemd unit (kanban),
+# loopback :8095. The app compresses its pages and streams itself, so no `encode`. ---
+kanban.zweiundeins.gmbh {
+	log {
+		output file /var/log/caddy/kanban-access.log {
+			mode 0640
+			roll_size 100mb
+			roll_keep 5
+			roll_keep_for 720h
+		}
+		format json
+	}
+
+	reverse_proxy 127.0.0.1:8095 {
+		flush_interval -1
+	}
+}

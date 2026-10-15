@@ -23,7 +23,7 @@ It runs on lith (`github.com/zweiundeins/lith` v0.2.0): its writer, live hub, ss
 - `internal/web`: routes behind lith's edge (CSRF with Datastar-Request on `POST /boards/`, security headers with the CSP's hashes, compression, precompressed static files under `/static/`), sessions, handlers, the views of a stream (`streams.go`: the tab's outbox, the board and presence, in that order), the renderer with lith's content-addressed caches.
 - `internal/views`: templ components. `expr.go` builds the Datastar expressions (`Act`, `Pending`, `Done`): use them instead of writing expressions by hand.
 - `web/static`: `app.css`, the icon, and `vendor/` (Starbase components as one file each, from Starbase's `cmd/dist`, and its patched Datastar build, pinned; see `vendor/VERSION`, update with `task starbase`).
-- `e2e/`: Node test runner with playwright-core against the real binary. `deploy/`: systemd units, backup timer, Caddy snippet, install script.
+- `e2e/`: Node test runner with playwright-core against the real binary. `deploy/`: systemd units, backup timer, the Caddy site block `kanban.caddy` (installed by hand), the host's drop-ins in `observability/` (blackbox probes, the Alloy file), `install.sh` (first install) and `install-dropins.sh` (the drop-ins alone, which `install.sh` also runs).
 
 ## Commands
 

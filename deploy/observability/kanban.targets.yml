@@ -1,0 +1,6 @@
+# Blackbox probes for kanban, installed as /etc/prometheus/targets/kanban.yml.
+# `module` picks the blackbox module; see the host's /etc/prometheus/blackbox.yml.
+- targets: ['https://kanban.zweiundeins.gmbh/']
+  labels: { service: kanban, module: http_redirect }
+- targets: ['https://kanban.zweiundeins.gmbh/login']
+  labels: { service: kanban, module: http_2xx_kanban }

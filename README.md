@@ -50,15 +50,40 @@ The demo accounts are `anna@example.com`, `ben@example.com`, `chiara@example.com
 
 ## Deploy
 
-`deploy/` has a sandboxed systemd unit, a backup timer (every six hours, fourteen days kept), a Caddy snippet and an install script:
+`deploy/` has a sandboxed systemd unit, a backup timer (every six hours, fourteen days kept), the Caddy site block, the host's monitoring drop-ins and an install script:
 
 ```sh
 go tool task build
-scp kanban deploy/* root@host:/tmp/kanban-deploy/
+scp -r kanban deploy/* root@host:/tmp/kanban-deploy/
 ssh root@host sh /tmp/kanban-deploy/install.sh
 ```
 
 On SIGTERM the server stops accepting connections, ends the streams and commits what is queued. The pages reconnect to the new process.
+
+### On a shared host
+
+The host keeps its own configs for Caddy, Prometheus and Alloy, and each loads a folder of files that the apps install: lith's guide [Metrics and monitoring](https://lith.zweiundeins.gmbh/docs/guides/monitoring#drop-in-files-for-a-shared-host) has the folders and the labels. Kanban's:
+
+- `deploy/kanban.caddy` as `/etc/caddy/sites/kanban.caddy`: the site block, with its JSON access log in `/var/log/caddy/kanban-access.log`.
+- `deploy/observability/kanban.targets.yml` as `/etc/prometheus/targets/kanban.yml`: blackbox probes of `/`, a redirect (the host's `http_redirect` module), and `/login` (`http_2xx_kanban`, which wants "Kanban" in the body). Prometheus watches the folder.
+- `deploy/observability/kanban.alloy` as `/etc/alloy/kanban.alloy`: Caddy's access log as `{job="caddy", site="kanban"}`, through the host's pipeline for access logs.
+
+Kanban serves no metrics, so it has no `/etc/prometheus/apps/` target. `deploy/install-dropins.sh` installs the probes and the Alloy file, each only where its service is installed, reloads Alloy, and puts the old file back if Alloy refuses the new one. `install.sh` runs it last; on its own it changes nothing else (no seed, no restart), so run it alone after changing them:
+
+```sh
+scp -r deploy root@host:/tmp/kanban-dropins
+ssh root@host bash /tmp/kanban-dropins/install-dropins.sh
+```
+
+The Caddy block goes in by hand, since Caddy asks for the certificate as it loads it. As root, from the copied folder:
+
+```sh
+install -m 0644 kanban.caddy /etc/caddy/sites/
+runuser -u caddy -- env HOME=/var/lib/caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+systemctl reload caddy
+```
+
+Validate as Caddy's user: `caddy validate`, run as root, creates the log file owned by root, and the reload then fails.
 
 ## Measured
 

@@ -1,6 +1,6 @@
 #!/bin/sh
-# First install on the VPS (as root): the user, the binary, the units.
-#   scp kanban deploy/* root@host:/tmp/kanban-deploy/ && ssh root@host sh /tmp/kanban-deploy/install.sh
+# First install on the VPS (as root): the user, the binary, the units, the host's drop-ins.
+#   scp -r kanban deploy/* root@host:/tmp/kanban-deploy/ && ssh root@host sh /tmp/kanban-deploy/install.sh
 set -eu
 here=$(dirname "$0")
 id kanban >/dev/null 2>&1 || useradd --system --home /var/lib/kanban --shell /usr/sbin/nologin kanban
@@ -14,3 +14,4 @@ fi
 systemctl enable --now kanban.service kanban-backup.timer
 systemctl restart kanban.service
 systemctl --no-pager status kanban.service | head -5
+bash "$here/install-dropins.sh"

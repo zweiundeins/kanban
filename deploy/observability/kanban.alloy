@@ -1,0 +1,16 @@
+// kanban: its Caddy access log, through the host's caddy_logs pipeline (config.alloy).
+// Installed as /etc/alloy/kanban.alloy by deploy/install-dropins.sh.
+
+local.file_match "kanban_access" {
+	path_targets = [
+		{"__path__" = "/var/log/caddy/kanban-access.log", "job" = "caddy", "site" = "kanban"},
+	]
+}
+
+loki.source.file "kanban_access" {
+	targets    = local.file_match.kanban_access.targets
+	forward_to = [loki.process.caddy_logs.receiver]
+	// A newly added log starts at its end: Loki rejects lines older than a week,
+	// and referrer-rollup.py --files covers the history instead.
+	tail_from_end = true
+}
