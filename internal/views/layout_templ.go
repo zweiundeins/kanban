@@ -474,7 +474,7 @@ func Login(p Page, email, problem, csrf string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "</code>. Open two browsers as two people to see each other's changes.</p></details></div></main>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "</code>. Open two browsers as two people to see each other's changes.</p></details><p class=\"maintainer\">Maintained by <a href=\"https://zweiundeins.gmbh\">zwei und eins gmbh</a>.</p></div></main>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -543,7 +543,7 @@ func Home(p Page, projects []app.Project) templ.Component {
 				var templ_7745c5c3_Var29 string
 				templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(pr.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/layout.templ`, Line: 118, Col: 18}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/layout.templ`, Line: 119, Col: 18}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 				if templ_7745c5c3_Err != nil {
@@ -561,7 +561,7 @@ func Home(p Page, projects []app.Project) templ.Component {
 					var templ_7745c5c3_Var30 templ.SafeURL
 					templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(boardURL(b.ID, "")))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/layout.templ`, Line: 122, Col: 70}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/layout.templ`, Line: 123, Col: 70}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 					if templ_7745c5c3_Err != nil {
@@ -574,7 +574,7 @@ func Home(p Page, projects []app.Project) templ.Component {
 					var templ_7745c5c3_Var31 string
 					templ_7745c5c3_Var31, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues("view-transition-name: board-" + id(b.ID))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/layout.templ`, Line: 122, Col: 122}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/layout.templ`, Line: 123, Col: 122}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 					if templ_7745c5c3_Err != nil {
@@ -587,7 +587,7 @@ func Home(p Page, projects []app.Project) templ.Component {
 					var templ_7745c5c3_Var32 string
 					templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(b.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/layout.templ`, Line: 123, Col: 23}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/layout.templ`, Line: 124, Col: 23}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 					if templ_7745c5c3_Err != nil {
@@ -661,7 +661,7 @@ func NotFound(p Page, what string) templ.Component {
 			var templ_7745c5c3_Var35 string
 			templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(what)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/layout.templ`, Line: 139, Col: 26}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/layout.templ`, Line: 140, Col: 26}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 			if templ_7745c5c3_Err != nil {
