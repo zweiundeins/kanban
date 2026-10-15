@@ -126,3 +126,7 @@ Same boards in both apps; the measured person on a slowed phone (4x CPU) behind 
 ## Licence
 
 MIT. The vendored Starbase components in `web/static/vendor/starbase` (one file each) are MIT. Those from derekr's PD rockets (`kanban-board`, `inline-edit`) are Beer-Ware. Datastar is MIT. See `web/static/vendor/VERSION`.
+
+## Maintainer
+
+Maintained by [zwei und eins gmbh](https://zweiundeins.gmbh), Aarberg, Switzerland.
