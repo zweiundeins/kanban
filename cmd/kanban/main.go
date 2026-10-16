@@ -5,6 +5,9 @@
 //	kanban reset  [flags]   delete the database and seed it again (server stopped)
 //	kanban backup [flags]   copy the database to -to, safe while the server runs
 //	kanban export [flags]   print the boards as JSON (to load them into another app)
+//
+// serve's metrics for Prometheus go out on a loopback listener of their own,
+// -metrics (metrics.go).
 package main
 
 import (
@@ -15,6 +18,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -37,10 +41,10 @@ import (
 )
 
 type config struct {
-	addr, dbPath, sync, origins, adminEmail, adminPassword, resetAt, to, static, zstdLevel string
-	secure, debug                                                                          bool
-	throttle                                                                               time.Duration
-	lgwin, level, actions                                                                  int
+	addr, metrics, dbPath, sync, origins, adminEmail, adminPassword, resetAt, to, static, zstdLevel string
+	secure, debug                                                                                   bool
+	throttle                                                                                        time.Duration
+	lgwin, level, actions                                                                           int
 }
 
 func main() {
@@ -50,27 +54,7 @@ func main() {
 		cmd, args = args[0], args[1:]
 	}
 	var c config
-	fsf := flag.NewFlagSet(cmd, flag.ExitOnError)
-	fsf.StringVar(&c.addr, "addr", env("KANBAN_ADDR", "127.0.0.1:8080"), "listen address")
-	fsf.StringVar(&c.dbPath, "db", env("KANBAN_DB", "data/kanban.db"), "SQLite database file")
-	fsf.StringVar(&c.sync, "synchronous", env("KANBAN_SYNCHRONOUS", "FULL"), "SQLite synchronous pragma: FULL or NORMAL")
-	fsf.StringVar(&c.origins, "origins", env("KANBAN_ORIGINS", ""), "extra allowed Origin values, comma-separated (https://kanban.example.com)")
-	fsf.StringVar(&c.adminEmail, "admin-email", env("KANBAN_ADMIN_EMAIL", ""), "seed: an admin account besides the demo users")
-	fsf.StringVar(&c.adminPassword, "admin-password", env("KANBAN_ADMIN_PASSWORD", ""), "seed: the admin's password")
-	fsf.BoolVar(&c.secure, "secure", env("KANBAN_SECURE", "") == "1", "HTTPS only cookies and HSTS (behind a TLS proxy)")
-	fsf.BoolVar(&c.debug, "debug", env("KANBAN_DEBUG", "") == "1", "debug logging")
-	fsf.DurationVar(&c.throttle, "throttle", 50*time.Millisecond, "minimum time between two renders of a board")
-	// Browsers that accept zstd get it, the others brotli. On the 200-card
-	// board with 200 busy streams, brotli quality 3 sends 1.9 kB a frame
-	// (0.7 GB RSS), 4 sends 1.0 kB (0.95 GB), 5 sends 0.7 kB (1.2 GB).
-	fsf.IntVar(&c.lgwin, "brotli-lgwin", 18, "the largest brotli window a live stream may take (log2 bytes, 10 to 24)")
-	fsf.IntVar(&c.level, "brotli-level", 4, "brotli quality of the live streams (1 to 11)")
-	fsf.StringVar(&c.zstdLevel, "zstd-level", "fastest", "zstd level of the live streams: fastest, default, better or best")
-	fsf.IntVar(&c.actions, "action-limit", 300, "actions one user may send per 10 s (0: no limit, for load tests)")
-	fsf.StringVar(&c.resetAt, "reset-at", env("KANBAN_RESET_AT", ""), "serve: put the demo boards back to the seed every day at HH:MM UTC (a public demo)")
-	fsf.StringVar(&c.to, "to", "", "backup: the file to write")
-	fsf.StringVar(&c.static, "static", "", "serve: static files from this directory instead of the embedded ones (development)")
-	fsf.Parse(args)
+	flags(cmd, &c).Parse(args)
 
 	level := slog.LevelInfo
 	if c.debug {
@@ -82,7 +66,7 @@ func main() {
 	var err error
 	switch cmd {
 	case "serve":
-		err = serve(c, log)
+		err = serve(context.Background(), c, log)
 	case "seed":
 		err = seed(c, false)
 	case "reset":
@@ -102,6 +86,32 @@ func main() {
 		log.Error(cmd, "err", err)
 		os.Exit(1)
 	}
+}
+
+// flags defines cmd's flags into c.
+func flags(cmd string, c *config) *flag.FlagSet {
+	fsf := flag.NewFlagSet(cmd, flag.ExitOnError)
+	fsf.StringVar(&c.addr, "addr", env("KANBAN_ADDR", "127.0.0.1:8080"), "listen address")
+	fsf.StringVar(&c.metrics, "metrics", env("KANBAN_METRICS", "auto"), "serve: the metrics for Prometheus on this loopback host:port; auto: 127.0.0.1 at -addr's port + 100; off: none")
+	fsf.StringVar(&c.dbPath, "db", env("KANBAN_DB", "data/kanban.db"), "SQLite database file")
+	fsf.StringVar(&c.sync, "synchronous", env("KANBAN_SYNCHRONOUS", "FULL"), "SQLite synchronous pragma: FULL or NORMAL")
+	fsf.StringVar(&c.origins, "origins", env("KANBAN_ORIGINS", ""), "extra allowed Origin values, comma-separated (https://kanban.example.com)")
+	fsf.StringVar(&c.adminEmail, "admin-email", env("KANBAN_ADMIN_EMAIL", ""), "seed: an admin account besides the demo users")
+	fsf.StringVar(&c.adminPassword, "admin-password", env("KANBAN_ADMIN_PASSWORD", ""), "seed: the admin's password")
+	fsf.BoolVar(&c.secure, "secure", env("KANBAN_SECURE", "") == "1", "HTTPS only cookies and HSTS (behind a TLS proxy)")
+	fsf.BoolVar(&c.debug, "debug", env("KANBAN_DEBUG", "") == "1", "debug logging")
+	fsf.DurationVar(&c.throttle, "throttle", 50*time.Millisecond, "minimum time between two renders of a board")
+	// Browsers that accept zstd get it, the others brotli. On the 200-card
+	// board with 200 busy streams, brotli quality 3 sends 1.9 kB a frame
+	// (0.7 GB RSS), 4 sends 1.0 kB (0.95 GB), 5 sends 0.7 kB (1.2 GB).
+	fsf.IntVar(&c.lgwin, "brotli-lgwin", 18, "the largest brotli window a live stream may take (log2 bytes, 10 to 24)")
+	fsf.IntVar(&c.level, "brotli-level", 4, "brotli quality of the live streams (1 to 11)")
+	fsf.StringVar(&c.zstdLevel, "zstd-level", "fastest", "zstd level of the live streams: fastest, default, better or best")
+	fsf.IntVar(&c.actions, "action-limit", 300, "actions one user may send per 10 s (0: no limit, for load tests)")
+	fsf.StringVar(&c.resetAt, "reset-at", env("KANBAN_RESET_AT", ""), "serve: put the demo boards back to the seed every day at HH:MM UTC (a public demo)")
+	fsf.StringVar(&c.to, "to", "", "backup: the file to write")
+	fsf.StringVar(&c.static, "static", "", "serve: static files from this directory instead of the embedded ones (development)")
+	return fsf
 }
 
 func env(key, def string) string {
@@ -158,19 +168,34 @@ func buildRef() string {
 	return "dev"
 }
 
-func serve(c config, log *slog.Logger) error {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+// serve runs the server until ctx ends or the process gets SIGINT or SIGTERM.
+func serve(ctx context.Context, c config, log *slog.Logger) error {
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	ok, zstdLevel := zstd.EncoderLevelFromString(c.zstdLevel)
 	if !ok {
 		return fmt.Errorf("-zstd-level %q: want fastest, default, better or best", c.zstdLevel)
 	}
+	maddr, err := metricsListen(c.metrics, c.addr)
+	if err != nil {
+		return err
+	}
+	var mln net.Listener
+	if maddr != "" {
+		if mln, err = net.Listen("tcp", maddr); err != nil {
+			return fmt.Errorf("metrics: %w", err)
+		}
+		defer mln.Close()
+	}
+	if err := registerDriver(log); err != nil {
+		return err
+	}
 
 	// The writer tells the hub what each commit changed; the hub reads
 	// from the database's pool. No command is sent before hub is set.
 	var hub *lithlive.Hub
-	d, err := db.Open(ctx, c.dbPath, db.Options{Synchronous: c.sync, Log: log, OnCommit: func(topics []string) { hub.Changed(topics) }})
+	d, err := db.Open(ctx, c.dbPath, db.Options{Synchronous: c.sync, Log: log, OnCommit: func(topics []string) { hub.Changed(topics) }, Driver: sqliteDriver})
 	if err != nil {
 		return err
 	}
@@ -220,6 +245,15 @@ func serve(c config, log *slog.Logger) error {
 		WriteTimeout:      60 * time.Second, // a stream sets a deadline for each of its writes
 		IdleTimeout:       120 * time.Second,
 		ErrorLog:          slog.NewLogLogger(log.Handler(), slog.LevelWarn),
+	}
+	// The metrics never go on the public listener.
+	msrv := &http.Server{Handler: metrics(d.W, hub, log), ReadHeaderTimeout: 5 * time.Second}
+	if mln != nil {
+		go func() {
+			if err := msrv.Serve(mln); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				log.Error("metrics", "err", err)
+			}
+		}()
 	}
 
 	// Housekeeping: old messages for tabs, old op outcomes.
@@ -272,12 +306,13 @@ func serve(c config, log *slog.Logger) error {
 
 	errc := make(chan error, 1)
 	go func() {
-		log.Info("listening", "addr", c.addr, "db", c.dbPath, "synchronous", c.sync, "build", s.BuildRef)
+		log.Info("listening", "addr", c.addr, "metrics", maddr, "db", c.dbPath, "synchronous", c.sync, "build", s.BuildRef)
 		errc <- srv.ListenAndServe()
 	}()
 	select {
 	case err := <-errc:
 		if !errors.Is(err, http.ErrServerClosed) {
+			msrv.Close()
 			stopStreams()
 			<-hubDone
 			d.Close()
@@ -294,5 +329,6 @@ func serve(c config, log *slog.Logger) error {
 	if err := srv.Shutdown(sctx); err != nil {
 		log.Warn("shutdown", "err", err)
 	}
+	msrv.Close()
 	return d.Close() // runs what is queued, then closes
 }

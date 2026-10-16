@@ -1,0 +1,14 @@
+# kanban's metrics listener for the host's Prometheus, installed as
+# /etc/prometheus/apps/kanban.yml, which the host's `apps` job reads. The port
+# is kanban.service's -metrics and SocketBindAllow: change the three together
+# (TestMetricsPort).
+#
+# What it serves (cmd/kanban/metrics.go):
+#   kanban_writer_*                        batches, commands, failures, queue, commit p99 (lith/prom)
+#   kanban_live_*                          ticks, overruns, renders, frames sent and dropped, streams (lith/prom)
+#   kanban_sse_budget_*                    limit, reserved, streams by setting, refused (lith/prom)
+#   kanban_db_query_duration_seconds{op}   statement timings (lith/dbmetrics/prom)
+#   kanban_db_slow_queries_total{op}
+#   go_*, process_*                        the Go runtime and the process
+- targets: ['127.0.0.1:8195']
+  labels: { app: kanban, slot: prod }

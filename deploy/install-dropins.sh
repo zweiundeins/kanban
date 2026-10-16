@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# The host's drop-ins (as root): the probes for Prometheus and the Alloy file, each
-# only where that service is installed. install.sh runs it too; rerun it after a change.
+# The host's drop-ins (as root): the scrape target and the probes for Prometheus, and
+# the Alloy file, each only where that service is installed. install.sh runs it too;
+# rerun it after a change.
 #   scp -r deploy root@host:/tmp/kanban-dropins && ssh root@host bash /tmp/kanban-dropins/install-dropins.sh
 set -euo pipefail
 NAME=kanban
@@ -10,11 +11,15 @@ ALLOY_URL=${ALLOY_URL:-http://127.0.0.1:12345}
 
 installed() { [[ "$(systemctl show -p LoadState --value "$1" 2>/dev/null)" == loaded ]]; }
 
-# Prometheus watches the folder (file_sd), so it needs no reload.
+# Prometheus watches both folders (file_sd), so it needs no reload.
 prometheus_dropins() {
 	if ! installed prometheus; then
-		echo ">> no Prometheus here: no probes"
+		echo ">> no Prometheus here: no scrape target, no probes"
 		return
+	fi
+	if [[ -f "$OBS/$NAME.metrics.yml" ]]; then
+		install -D -m 0644 "$OBS/$NAME.metrics.yml" "/etc/prometheus/apps/$NAME.yml"
+		echo ">> Prometheus scrapes $NAME: /etc/prometheus/apps/$NAME.yml"
 	fi
 	if [[ -f "$OBS/$NAME.targets.yml" ]]; then
 		install -D -m 0644 "$OBS/$NAME.targets.yml" "/etc/prometheus/targets/$NAME.yml"

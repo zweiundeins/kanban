@@ -9,8 +9,12 @@ User=kanban
 Group=kanban
 StateDirectory=kanban
 WorkingDirectory=/var/lib/kanban
+# Kanban on 127.0.0.1:8095 for Caddy, its metrics on 127.0.0.1:8195 for
+# Prometheus only (observability/kanban.metrics.yml). Change a port here, in
+# SocketBindAllow and in kanban.caddy or kanban.metrics.yml together.
 ExecStart=/opt/kanban/kanban serve \
 	-addr 127.0.0.1:8095 \
+	-metrics 127.0.0.1:8195 \
 	-db /var/lib/kanban/kanban.db \
 	-secure \
 	-origins https://kanban.zweiundeins.gmbh \
@@ -25,6 +29,15 @@ RestartSec=1
 KillSignal=SIGTERM
 TimeoutStopSec=20
 LimitNOFILE=65536
+
+# Network: loopback only, both ways. Caddy and Prometheus connect from
+# 127.0.0.1; kanban itself connects nowhere, not even to DNS. It may bind
+# its two ports and no other.
+IPAddressDeny=any
+IPAddressAllow=localhost
+SocketBindAllow=tcp:8095
+SocketBindAllow=tcp:8195
+SocketBindDeny=any
 
 NoNewPrivileges=yes
 ProtectSystem=strict

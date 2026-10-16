@@ -43,6 +43,9 @@ type Options struct {
 	// Changed).
 	OnCommit func(topics []string)
 	Log      *slog.Logger
+	// Driver is the database/sql driver both pools open through (default
+	// modernc's "sqlite"); serve names one that dbmetrics wraps.
+	Driver string
 }
 
 // DB is the database: R for queries, W for every write.
@@ -65,6 +68,7 @@ func Open(ctx context.Context, path string, opts Options) (*DB, error) {
 		Migrations:  migrations(),
 		Readers:     opts.Readers,
 		Checkpoint:  sqlite.CheckpointWriter,
+		Driver:      opts.Driver,
 	})
 	if err != nil {
 		return nil, err

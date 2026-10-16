@@ -4,7 +4,7 @@ A collaborative Kanban board, rendered on the server. Several people move cards 
 
 Live demo: [kanban.zweiundeins.gmbh](https://kanban.zweiundeins.gmbh), with the demo accounts below; it goes back to its seed every night at 03:00 UTC.
 
-It is one static Go binary (14.1 MB) with one SQLite file, Datastar in the browser and [Starbase](https://starbase.zweiundeins.gmbh) components for dragging, renaming in place, the card dialog and messages. It runs on lith, the runtime our Go and SQLite apps share: its single writer, its render loop with shared views, its compressed streams and its request edge. It is a case study by [zwei und eins](https://zweiundeins.gmbh), compared with [PLANKA](https://planka.app) Community (React, Redux, Sails.js, PostgreSQL, WebSockets).
+It is one static Go binary (17.1 MB) with one SQLite file, Datastar in the browser and [Starbase](https://starbase.zweiundeins.gmbh) components for dragging, renaming in place, the card dialog and messages. It runs on lith, the runtime our Go and SQLite apps share: its single writer, its render loop with shared views, its compressed streams and its request edge. It is a case study by [zwei und eins](https://zweiundeins.gmbh), compared with [PLANKA](https://planka.app) Community (React, Redux, Sails.js, PostgreSQL, WebSockets).
 
 ## What it does
 
@@ -39,6 +39,7 @@ The demo accounts are `anna@example.com`, `ben@example.com`, `chiara@example.com
 
 `kanban serve` takes flags (or `KANBAN_*` environment variables). The main ones:
 - `-addr` and `-db`
+- `-metrics`, where the metrics for Prometheus listen, never on the public listener: `auto` (the default) is 127.0.0.1 at `-addr`'s port + 100, `off` is none, and an address off loopback is refused
 - `-secure`, behind a TLS proxy (the client's address comes from the proxy's headers when the request arrives over loopback)
 - `-origins` for allowed `Origin` values
 - `-reset-at 03:00` to put a public demo back to the seed every night, in process, keeping the accounts
@@ -60,15 +61,18 @@ ssh root@host sh /tmp/kanban-deploy/install.sh
 
 On SIGTERM the server stops accepting connections, ends the streams and commits what is queued. The pages reconnect to the new process.
 
+The unit listens on 127.0.0.1:8095 for Caddy and serves the metrics on 127.0.0.1:8195 for Prometheus. It may bind those two ports and no other, and reaches no host but its own. A port changes in the unit's flags and `SocketBindAllow` together, and in `kanban.caddy` or `observability/kanban.metrics.yml`; `TestMetricsPort` checks that the unit and the scrape file agree.
+
 ### On a shared host
 
 The host keeps its own configs for Caddy, Prometheus and Alloy, and each loads a folder of files that the apps install: lith's guide [Metrics and monitoring](https://lith.zweiundeins.gmbh/docs/guides/monitoring#drop-in-files-for-a-shared-host) has the folders and the labels. Kanban's:
 
 - `deploy/kanban.caddy` as `/etc/caddy/sites/kanban.caddy`: the site block, with its JSON access log in `/var/log/caddy/kanban-access.log`.
+- `deploy/observability/kanban.metrics.yml` as `/etc/prometheus/apps/kanban.yml`: Prometheus scrapes `127.0.0.1:8195`, labelled `app: kanban` and `slot: prod`, and the host's "lith apps" dashboard and alert rules show kanban: `kanban_writer_*`, `kanban_live_*`, `kanban_sse_budget_*`, `kanban_db_*`, `go_*` and `process_*`. Prometheus watches the folder.
 - `deploy/observability/kanban.targets.yml` as `/etc/prometheus/targets/kanban.yml`: blackbox probes of `/`, a redirect (the host's `http_redirect` module), and `/login` (`http_2xx_kanban`, which wants "Kanban" in the body). Prometheus watches the folder.
 - `deploy/observability/kanban.alloy` as `/etc/alloy/kanban.alloy`: Caddy's access log as `{job="caddy", site="kanban"}`, through the host's pipeline for access logs.
 
-Kanban serves no metrics, so it has no `/etc/prometheus/apps/` target. `deploy/install-dropins.sh` installs the probes and the Alloy file, each only where its service is installed, reloads Alloy, and puts the old file back if Alloy refuses the new one. `install.sh` runs it last; on its own it changes nothing else (no seed, no restart), so run it alone after changing them:
+`deploy/install-dropins.sh` installs the scrape target, the probes and the Alloy file, each only where its service is installed, reloads Alloy, and puts the old file back if Alloy refuses the new one. `install.sh` runs it last; on its own it changes nothing else (no seed, no restart), so run it alone after changing them:
 
 ```sh
 scp -r deploy root@host:/tmp/kanban-dropins
