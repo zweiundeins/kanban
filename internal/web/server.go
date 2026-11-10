@@ -8,7 +8,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io/fs"
@@ -20,9 +19,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/zweiundeins/lith/datastar"
 	"github.com/zweiundeins/lith/edge"
 	lithlive "github.com/zweiundeins/lith/live"
-	"github.com/zweiundeins/lith/template"
 
 	"kanban/internal/app"
 	"kanban/internal/live"
@@ -55,7 +54,7 @@ func NewStatic(fsys fs.FS) (*edge.Static, error) {
 	if err != nil {
 		return nil, err
 	}
-	static.Add(views.DatastarJS, template.Datastar())
+	static.Add(views.DatastarJS, datastar.JS())
 	return static, nil
 }
 
@@ -164,12 +163,7 @@ func quiet(h http.Handler) http.Handler {
 // assetsVersion names the page's scripts and stylesheet: a page that a
 // former build rendered with others needs a reload (refresh).
 func (s *Server) assetsVersion() string {
-	files := append([]string{"app.css", views.DatastarJS}, boardModules...)
-	h := sha256.New()
-	for _, f := range files {
-		h.Write([]byte(s.Static.URL(f) + "\n"))
-	}
-	return hex.EncodeToString(h.Sum(nil)[:6])
+	return s.Static.Version(append([]string{"app.css", views.DatastarJS}, boardModules...)...)
 }
 
 // policy is the content security policy: Datastar evaluates expressions

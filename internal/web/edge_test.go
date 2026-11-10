@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zweiundeins/lith/template"
+	"github.com/zweiundeins/lith/datastar"
 
 	"kanban/internal/views"
 	webfiles "kanban/web"
@@ -54,7 +54,7 @@ func TestProbes(t *testing.T) {
 	if src == nil {
 		t.Fatal("the page loads no Datastar")
 	}
-	if code, body := get(t, srv.URL+src[1]); code != 200 || body != string(template.Datastar()) {
+	if code, body := get(t, srv.URL+src[1]); code != 200 || body != string(datastar.JS()) {
 		t.Fatalf("%s: %d, %d bytes, not lith's build", src[1], code, len(body))
 	}
 }
@@ -70,9 +70,9 @@ func TestStarbaseMatchesDatastar(t *testing.T) {
 	if m == nil {
 		t.Fatal("web/static/vendor/VERSION names no Datastar hash")
 	}
-	sum := sha256.Sum256(template.Datastar())
+	sum := sha256.Sum256(datastar.JS())
 	if got := hex.EncodeToString(sum[:]); string(m[1]) != got {
-		t.Fatalf("Starbase was vendored with Datastar %s, lith serves %s (%s): run task starbase with a matching ref", m[1], got, template.DatastarVersion)
+		t.Fatalf("Starbase was vendored with Datastar %s, lith serves %s (%s): run task starbase with a matching ref", m[1], got, datastar.Version)
 	}
 }
 
