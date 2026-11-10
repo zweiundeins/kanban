@@ -5,12 +5,10 @@ import (
 	"time"
 )
 
-// DetailClosed is the dialog when no card is open in the tab. It keeps
-// open="false": a frame morphs an open dialog into this one, and Starbase's
-// sb-modal closes on a change of the attribute's value, not on its removal
-// (e2e: "back from a card opened on the board closes its dialog").
+// DetailClosed is the dialog when no card is open in the tab: without open,
+// which closes a dialog that a frame morphs into this one.
 templ DetailClosed(board int64) {
-	<sb-modal id="detail" class="detail" heading="Card" open="false" data-on:sb-close={ openExpr(board, 0) }></sb-modal>
+	<sb-modal id="detail" class="detail" heading="Card" data-on:sb-close={ openExpr(board, 0) }></sb-modal>
 }
 
 // DetailGone is the dialog for a card that no longer exists.
