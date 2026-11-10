@@ -1,0 +1,75 @@
+Date: 2026-11-10. old = 55474f4 (lith v0.3.0), new = 8abe4d8 (lith v0.5.5). Intel i5-13500, taskset -c 0-11, database in /tmp on an NVMe SSD (btrfs).
+[heavy] load 11.87, 35 GB free: waiting for one of 3 slots on /tmp/heavy.lock.N
+[heavy] slot 3: running
+== round 1 old
+goos: linux
+goarch: amd64
+pkg: kanban/internal/app
+cpu: 13th Gen Intel(R) Core(TM) i5-13500
+BenchmarkMoveCard/1-12  	    7058	    901220 ns/op	        96.85 KiB-written/move	         1.000 moves/batch	      1110 moves/s	         0.8700 ms/batch
+BenchmarkMoveCard/50-12 	   94027	     70282 ns/op	         6.863 KiB-written/move	        25.48 moves/batch	     14228 moves/s	         1.702 ms/batch
+BenchmarkMoveCard/200-12         	  169682	     39860 ns/op	         2.257 KiB-written/move	       107.1 moves/batch	     25088 moves/s	         4.088 ms/batch
+PASS
+== round 1 new
+goos: linux
+goarch: amd64
+pkg: kanban/internal/app
+cpu: 13th Gen Intel(R) Core(TM) i5-13500
+BenchmarkMoveCard/1-12  	    9070	    778386 ns/op	       101.8 KiB-written/move	         1.000 moves/batch	      1285 moves/s	         0.7566 ms/batch
+BenchmarkMoveCard/50-12 	   97887	     64968 ns/op	         7.234 KiB-written/move	        25.53 moves/batch	     15392 moves/s	         1.579 ms/batch
+BenchmarkMoveCard/200-12         	  155268	     37519 ns/op	         2.101 KiB-written/move	       115.9 moves/batch	     26653 moves/s	         4.168 ms/batch
+PASS
+== round 2 old
+goos: linux
+goarch: amd64
+pkg: kanban/internal/app
+cpu: 13th Gen Intel(R) Core(TM) i5-13500
+BenchmarkMoveCard/1-12  	    9483	    705643 ns/op	       103.6 KiB-written/move	         1.000 moves/batch	      1417 moves/s	         0.6870 ms/batch
+BenchmarkMoveCard/50-12 	  101923	     62856 ns/op	         7.298 KiB-written/move	        25.55 moves/batch	     15909 moves/s	         1.518 ms/batch
+BenchmarkMoveCard/200-12         	  172202	     40557 ns/op	         2.210 KiB-written/move	       108.2 moves/batch	     24657 moves/s	         4.210 ms/batch
+PASS
+== round 2 new
+goos: linux
+goarch: amd64
+pkg: kanban/internal/app
+cpu: 13th Gen Intel(R) Core(TM) i5-13500
+BenchmarkMoveCard/1-12  	    8858	    848837 ns/op	       100.3 KiB-written/move	         1.000 moves/batch	      1178 moves/s	         0.8234 ms/batch
+BenchmarkMoveCard/50-12 	  100747	     61357 ns/op	         7.227 KiB-written/move	        25.52 moves/batch	     16298 moves/s	         1.486 ms/batch
+BenchmarkMoveCard/200-12         	  160006	     37824 ns/op	         2.196 KiB-written/move	       110.1 moves/batch	     26438 moves/s	         3.989 ms/batch
+PASS
+== round 3 old
+goos: linux
+goarch: amd64
+pkg: kanban/internal/app
+cpu: 13th Gen Intel(R) Core(TM) i5-13500
+BenchmarkMoveCard/1-12  	    7412	    808229 ns/op	        98.46 KiB-written/move	         1.000 moves/batch	      1237 moves/s	         0.7839 ms/batch
+BenchmarkMoveCard/50-12 	   99765	     64968 ns/op	         7.044 KiB-written/move	        25.49 moves/batch	     15392 moves/s	         1.576 ms/batch
+BenchmarkMoveCard/200-12         	  154129	     38514 ns/op	         2.184 KiB-written/move	       113.7 moves/batch	     25964 moves/s	         4.190 ms/batch
+PASS
+== round 3 new
+goos: linux
+goarch: amd64
+pkg: kanban/internal/app
+cpu: 13th Gen Intel(R) Core(TM) i5-13500
+BenchmarkMoveCard/1-12  	    8460	    792880 ns/op	       100.1 KiB-written/move	         1.000 moves/batch	      1261 moves/s	         0.7729 ms/batch
+BenchmarkMoveCard/50-12 	   89470	     66318 ns/op	         7.172 KiB-written/move	        25.58 moves/batch	     15079 moves/s	         1.613 ms/batch
+BenchmarkMoveCard/200-12         	  172500	     37822 ns/op	         2.092 KiB-written/move	       117.2 moves/batch	     26439 moves/s	         4.205 ms/batch
+PASS
+== round 4 old
+goos: linux
+goarch: amd64
+pkg: kanban/internal/app
+cpu: 13th Gen Intel(R) Core(TM) i5-13500
+BenchmarkMoveCard/1-12  	    8056	    825112 ns/op	       101.5 KiB-written/move	         1.000 moves/batch	      1212 moves/s	         0.7992 ms/batch
+BenchmarkMoveCard/50-12 	   95300	     76545 ns/op	         6.982 KiB-written/move	        25.47 moves/batch	     13064 moves/s	         1.857 ms/batch
+BenchmarkMoveCard/200-12         	  167296	     37911 ns/op	         2.200 KiB-written/move	       110.7 moves/batch	     26377 moves/s	         4.022 ms/batch
+PASS
+== round 4 new
+goos: linux
+goarch: amd64
+pkg: kanban/internal/app
+cpu: 13th Gen Intel(R) Core(TM) i5-13500
+BenchmarkMoveCard/1-12  	    6579	    775863 ns/op	        99.34 KiB-written/move	         1.000 moves/batch	      1289 moves/s	         0.7539 ms/batch
+BenchmarkMoveCard/50-12 	   94256	     75814 ns/op	         7.076 KiB-written/move	        25.47 moves/batch	     13190 moves/s	         1.841 ms/batch
+BenchmarkMoveCard/200-12         	  142814	     47745 ns/op	         2.114 KiB-written/move	       117.8 moves/batch	     20944 moves/s	         5.394 ms/batch
+PASS

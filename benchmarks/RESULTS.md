@@ -104,15 +104,15 @@ Memory follows the streams: a stream that has received frames keeps brotli's win
 
 | people moving at once | moves per second | moves per transaction | time per transaction |
 |---|---|---|---|
-| 1 | 240 to 340 | 1 | 2.9 to 4.2 ms |
-| 50 | about 5,100 | 25 | 4.7 to 5.4 ms |
-| 200 | about 13,800 | 103 | 6.9 to 7.8 ms |
+| 1 | about 1,270 | 1 | 0.75 to 0.82 ms |
+| 50 | about 15,200 | 25 | 1.5 to 1.8 ms |
+| 200 | about 26,400 | 110 to 118 | 4.0 to 5.4 ms |
 
-Four rounds each, alternating with the code before the statement cache, on the performance cores (`taskset -c 0-11`); raw output in `results/2026-10/stmt-cache/writer-bench.txt`.
+Measured on 2026-11-10 at 8abe4d8 (lith v0.5.5): the median of four rounds each, alternating with 55474f4 (lith v0.3.0), which came out the same within the rounds' spread (about 1,220, 14,800 and 25,500), on the performance cores (`taskset -c 0-11`); raw output in `results/2026-11/writer-bench.txt`. The database sat on an NVMe SSD, where a commit's fsync takes about 0.8 ms. The October run on the same machine (`results/2026-10/stmt-cache/writer-bench.txt`) wrote to a slower disk, with 3 to 4 ms per fsync, and got 240 to 340, about 5,100 and about 13,800.
 
 The pure Go SQLite driver prepares a statement again on every call: it parses and plans the SQL, runs it, and throws the plan away. With 200 people that was 41% of the writer's CPU, 36% in SQLite's SQL parser alone (`results/2026-10/stmt-cache/writer-profile-200.txt`). The writer now holds its connection as a `*sql.Conn` and prepares each statement once on it, `BEGIN`, the savepoints and `COMMIT` included; reads outside a read transaction (the session and membership checks of every action) use statements prepared once per pool connection. With 200 people the writer went from about 10,000 to about 13,800 moves a second; the time left is mostly SQLite's own work (`sqlite3_step`, 40%) and Go's garbage collector (11%). With 1 or 50 people nothing changed: there every transaction waits for its fsync.
 
-Anders Murphy's [SQLite benchmark](https://andersmurphy.com/2025/12/02/100000-tps-over-a-billion-rows-the-unreasonable-effectiveness-of-sqlite.html), whose single-writer batching this design follows, reports 98,163 transactions a second with savepoints and `synchronous=FULL`. Ours is about seven times slower, for two reasons. A move runs about fifteen statements (the op id check, membership, two savepoints, the card, its list, the position, the update, the board version and the op record); his transfer runs two updates. And his machine was a MacBook, where SQLite's fsync doesn't wait for the drive to empty its cache unless `PRAGMA fullfsync` is on; his settings don't list it. Here a commit waits 3 to 5 ms for the disk, which is the ceiling for one person moving alone. For a board, 13,800 moves a second is far more than people make: 200 people each moving a card every 250 ms send 800.
+Anders Murphy's [SQLite benchmark](https://andersmurphy.com/2025/12/02/100000-tps-over-a-billion-rows-the-unreasonable-effectiveness-of-sqlite.html), whose single-writer batching this design follows, reports 98,163 transactions a second with savepoints and `synchronous=FULL`. Ours is about four times slower, for two reasons. A move runs about fifteen statements (the op id check, membership, two savepoints, the card, its list, the position, the update, the board version and the op record); his transfer runs two updates. And his machine was a MacBook, where SQLite's fsync doesn't wait for the drive to empty its cache unless `PRAGMA fullfsync` is on; his settings don't list it. Here a commit waits about 0.8 ms for the disk, which is the ceiling for one person moving alone. For a board, 26,000 moves a second is far more than people make: 200 people each moving a card every 250 ms send 800.
 
 ## Footprint
 
