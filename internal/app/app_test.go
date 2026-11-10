@@ -19,7 +19,7 @@ func newApp(t *testing.T) *App { return newAppWith(t, nil) }
 
 func newAppWith(t *testing.T, onCommit func([]string)) *App {
 	t.Helper()
-	d, err := db.Open(context.Background(), filepath.Join(t.TempDir(), "app.db"), db.Options{Synchronous: "NORMAL", OnCommit: onCommit})
+	d, err := db.Open(context.Background(), filepath.Join(t.TempDir(), "app.db"), db.Options{Synchronous: "OFF", OnCommit: onCommit})
 	if err != nil {
 		t.Fatal(err)
 	}

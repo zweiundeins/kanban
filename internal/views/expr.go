@@ -25,23 +25,26 @@ const opID = `Date.now().toString(36) + Math.random().toString(36).slice(2, 7)`
 
 // Act is a Datastar expression that posts an action. key names what is
 // pending meanwhile ($_pend[key] holds the op id, $_acks[op] its outcome
-// once the stream brings it); payload is extra JS object members, like
-// "title: $_in.l4". keyExpr is a JS expression for the key.
+// once the stream brings it); payload is the body's JS object members, like
+// "title: $_in.l4". keyExpr is a JS expression for the key. The tab and the
+// op go in the Tab-Id and Op-Id headers, so the server checks its rate
+// limit, and can tell the tab why it refused, before it reads the body.
 func Act(url, keyExpr, payload string) string {
-	if payload != "" {
-		payload = ", " + payload
-	}
 	// One comma expression, so callers can write "cond && (" + Act(...) + ")".
-	return fmt.Sprintf(`($_pend[%[2]s] = %[3]s, @post(%[1]s, {payload: {tab: $_tab, op: $_pend[%[2]s]%[4]s}, requestCancellation: 'disabled'}))`,
-		url, keyExpr, opID, payload)
+	return `($_pend[` + keyExpr + `] = ` + opID + `, ` + post(url, `{'Tab-Id': $_tab, 'Op-Id': $_pend[`+keyExpr+`]}`, payload) + `)`
 }
 
 // ActKey is Act with a fixed key.
 func ActKey(url, key, payload string) string { return Act(js(url), js(key), payload) }
 
 // UI posts a command about this tab's view (which card is open), no op.
-func UI(url, payload string) string {
-	return fmt.Sprintf(`@post(%s, {payload: {tab: $_tab, %s}, requestCancellation: 'disabled'})`, js(url), payload)
+func UI(url, payload string) string { return ui(js(url), payload) }
+
+// ui is UI with the URL as a JS expression.
+func ui(urlExpr, payload string) string { return post(urlExpr, `{'Tab-Id': $_tab}`, payload) }
+
+func post(urlExpr, headers, payload string) string {
+	return `@post(` + urlExpr + `, {headers: ` + headers + `, payload: {` + payload + `}, requestCancellation: 'disabled'})`
 }
 
 // Pending is true while key's action waits for its outcome.

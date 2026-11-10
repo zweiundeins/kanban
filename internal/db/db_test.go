@@ -10,7 +10,7 @@ import (
 
 func open(t *testing.T) *DB {
 	t.Helper()
-	d, err := Open(context.Background(), filepath.Join(t.TempDir(), "test.db"), Options{Synchronous: "NORMAL"})
+	d, err := Open(context.Background(), filepath.Join(t.TempDir(), "test.db"), Options{Synchronous: "OFF"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,21 +44,6 @@ func TestOpenMigrates(t *testing.T) {
 	}
 	if err := d.R.QueryRow("SELECT count(*) FROM sqlite_schema WHERE name = 'ops'").Scan(&tables); err != nil || tables != 0 {
 		t.Fatalf("ops is still there (%d), %v", tables, err)
-	}
-}
-
-// TestReadStatements: reads outside a transaction share prepared statements.
-func TestReadStatements(t *testing.T) {
-	d := open(t)
-	seedBoard(t, d)
-	for range 50 {
-		var name string
-		if err := d.QueryRow(context.Background(), "SELECT name FROM boards WHERE id = ?", 2).Scan(&name); err != nil || name != "c" {
-			t.Fatalf("got %q, %v", name, err)
-		}
-	}
-	if len(d.stmts) != 1 {
-		t.Fatalf("%d read statements cached, want 1", len(d.stmts))
 	}
 }
 

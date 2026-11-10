@@ -64,7 +64,7 @@ tasks:
       - go run ./cmd/loadtest {{.CLI_ARGS}}
 
   starbase:
-    desc: Copy the Starbase components and Datastar build again from a Starbase checkout (STARBASE=../starbase REF=origin/main)
+    desc: Copy the Starbase components again from a Starbase checkout whose Datastar is lith's (STARBASE=../starbase REF=origin/main)
     vars:
       STARBASE: '{{.STARBASE | default "../starbase"}}'
       REF: '{{.REF | default "origin/main"}}'

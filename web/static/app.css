@@ -360,9 +360,14 @@ sb-modal.detail::part(heading) { flex: 1; visibility: hidden; } /* keeps the clo
 	border-radius: 8px; background: var(--danger); color: #fff; font-weight: 600; box-shadow: var(--shadow-lift); cursor: pointer;
 }
 
-.offline {
+.offline, .update {
 	position: fixed; left: 50%; top: 3.75rem; transform: translateX(-50%); z-index: 20; margin: 0;
 	padding: 0.5rem 0.9rem; border-radius: 999px; background: var(--warn); color: #fff; font-weight: 600; box-shadow: var(--shadow-lift);
+}
+/* It stays until a reload: a corner of its own, off the lanes' headers. */
+.update {
+	display: flex; align-items: center; gap: 0.75rem; top: auto; bottom: 1rem; left: 1rem; transform: none;
+	max-width: calc(100vw - 2rem); border-radius: 8px; background: var(--accent);
 }
 
 @media (prefers-reduced-motion: reduce) {

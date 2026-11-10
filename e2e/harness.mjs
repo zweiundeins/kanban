@@ -20,13 +20,14 @@ export async function startServer(bin = build()) {
 	const db = join(dir, 'kanban.db')
 	execFileSync(bin, ['seed', '-db', db, '-synchronous', 'NORMAL'])
 	const port = 20000 + Math.floor(Math.random() * 20000)
-	const server = { bin, db, port, base: `http://127.0.0.1:${port}`, log: '' }
+	// -metrics auto: the stats listen on loopback at the port + 100
+	const server = { bin, db, port, base: `http://127.0.0.1:${port}`, stats: `http://127.0.0.1:${port + 100}/stats`, log: '' }
 	server.start = async () => {
 		server.proc = spawn(bin, ['serve', '-db', db, '-addr', `127.0.0.1:${port}`, '-synchronous', 'NORMAL'], { stdio: ['ignore', 'ignore', 'pipe'] })
 		server.proc.stderr.on('data', (d) => (server.log += d))
 		for (let i = 0; i < 100; i++) {
 			try {
-				if ((await fetch(server.base + '/_health')).ok) return
+				if ((await fetch(server.base + '/readyz')).ok) return
 			} catch {}
 			await sleep(100)
 		}

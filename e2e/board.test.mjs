@@ -402,6 +402,20 @@ test('a card URL opens its dialog on a full page load, and back closes it', asyn
 	await p.context().close()
 })
 
+// Only the server's frame closes the dialog here: back posts card 0, and the
+// frame morphs the open dialog into DetailClosed.
+test('back from a card opened on the board closes its dialog', async () => {
+	const p = await login(browser, server.base, 'anna@example.com')
+	await openBoard(p, server.base)
+	await p.locator('.card-title').first().click()
+	await p.waitForFunction(() => document.querySelector('#detail')?.isOpen, null, { timeout: 4000 })
+	await p.goBack()
+	await p.waitForURL(/\/boards\/1$/)
+	await p.waitForFunction(() => !document.querySelector('#detail')?.isOpen, null, { timeout: 4000 })
+	noErrors(p)
+	await p.context().close()
+})
+
 test('lists: add, rename, move, archive', async () => {
 	const p = await login(browser, server.base, 'dev@example.com')
 	await openBoard(p, server.base)
@@ -531,8 +545,8 @@ test('after a deploy the page opens its stream again, once, and sees new changes
 		assert.deepEqual(aStreams.byTab(), { [aStreams.tab]: 1 }, 'one stream for the page that reconnected')
 		assert.equal(aStreams.started, reconnected, 'no stream opened since the reconnect')
 		assert.deepEqual(bStreams.byTab(), { [bStreams.tab]: 1 }, 'one stream for the second page')
-		const health = await (await fetch(srv.base + '/_health')).json()
-		assert.equal(health.live.streams, 2, 'the server holds one stream per tab')
+		const stats = await (await fetch(srv.stats)).json()
+		assert.equal(stats.live.streams, 2, 'the server holds one stream per tab')
 		noErrors(a, b)
 	} finally {
 		for (const p of pages) await p.context().close()
@@ -547,8 +561,8 @@ test('security: other boards, other sites, no session', async () => {
 	const post = (path, origin) =>
 		fetch(server.base + path, {
 			method: 'POST',
-			headers: { cookie, origin, 'datastar-request': 'true', 'content-type': 'application/json' },
-			body: JSON.stringify({ tab: 'aaaaaaaaaaaaaaaaaaaaaa', op: 'x1', list: 1, title: 'evil' }),
+			headers: { cookie, origin, 'datastar-request': 'true', 'content-type': 'application/json', 'tab-id': 'aaaaaaaaaaaaaaaaaaaaaa', 'op-id': 'x1' },
+			body: JSON.stringify({ list: 1, title: 'evil' }),
 			redirect: 'manual',
 		})
 	assert.equal((await post('/boards/1/cards', 'https://evil.example')).status, 403)

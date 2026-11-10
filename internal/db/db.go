@@ -5,14 +5,14 @@ package db
 
 import (
 	"context"
-	"database/sql"
 	"embed"
 	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
 	"os"
-	"sync"
+	"strings"
+	"testing"
 
 	"github.com/zweiundeins/lith/sqlite"
 	"github.com/zweiundeins/lith/writer"
@@ -33,7 +33,8 @@ func migrations() fs.FS {
 type Options struct {
 	// Synchronous is SQLite's synchronous pragma: FULL (default) is as
 	// durable as PostgreSQL's defaults; NORMAL is faster and can lose the
-	// last commits on power loss, never on a crash of the process.
+	// last commits on power loss, never on a crash of the process. OFF
+	// syncs nothing, and Open takes it only under testing.Testing().
 	Synchronous string
 	// Readers is the size of the read pool (default lith's: GOMAXPROCS
 	// + 4, at least 8, which leaves four or more beside the live hub's
@@ -48,13 +49,12 @@ type Options struct {
 	Driver string
 }
 
-// DB is the database: R for queries, W for every write.
+// DB is the database: R for queries, W for every write. lith's read pool
+// keeps each query's prepared statement on its connection, so a read on R,
+// in a transaction or not, is parsed once per connection.
 type DB struct {
 	*sqlite.DB
 	W *writer.Writer
-
-	stmtMu sync.Mutex
-	stmts  map[string]*sql.Stmt // read statements, prepared once per pool connection
 }
 
 // Open opens (and creates) the database at path, runs the migrations and
@@ -62,6 +62,9 @@ type DB struct {
 func Open(ctx context.Context, path string, opts Options) (*DB, error) {
 	if opts.Synchronous == "" {
 		opts.Synchronous = "FULL"
+	}
+	if strings.EqualFold(opts.Synchronous, "OFF") && !testing.Testing() {
+		return nil, errors.New("synchronous OFF is for tests: a crash would corrupt the database")
 	}
 	sd, err := sqlite.Open(ctx, path, sqlite.Options{
 		Synchronous: opts.Synchronous,
@@ -84,59 +87,7 @@ func Open(ctx context.Context, path string, opts Options) (*DB, error) {
 
 // Close drains the writer, then closes both pools.
 func (d *DB) Close() error {
-	err := d.W.Close()
-	d.stmtMu.Lock()
-	for _, s := range d.stmts {
-		s.Close()
-	}
-	d.stmts = nil
-	d.stmtMu.Unlock()
-	return errors.Join(err, d.DB.Close())
-}
-
-// QueryRow runs a read on the pool with a cached prepared statement. Not
-// for use inside a read transaction: preparing takes a connection of its
-// own, and a transaction holding one while the pool is exhausted would
-// wait forever.
-func (d *DB) QueryRow(ctx context.Context, query string, args ...any) *sql.Row {
-	if s := d.readStmt(ctx, query); s != nil {
-		return s.QueryRowContext(ctx, args...)
-	}
-	return d.R.QueryRowContext(ctx, query, args...)
-}
-
-// Query is QueryRow for many rows.
-func (d *DB) Query(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
-	if s := d.readStmt(ctx, query); s != nil {
-		return s.QueryContext(ctx, args...)
-	}
-	return d.R.QueryContext(ctx, query, args...)
-}
-
-// maxStmts bounds the read statement cache. The queries are constants, so
-// it is never reached; past it, statements are prepared for each call again.
-const maxStmts = 512
-
-// readStmt prepares query on the pool once; database/sql then prepares it
-// on each connection the first time it runs there and keeps it.
-func (d *DB) readStmt(ctx context.Context, query string) *sql.Stmt {
-	d.stmtMu.Lock()
-	defer d.stmtMu.Unlock()
-	if s := d.stmts[query]; s != nil {
-		return s
-	}
-	if len(d.stmts) >= maxStmts {
-		return nil
-	}
-	s, err := d.R.PrepareContext(ctx, query)
-	if err != nil {
-		return nil
-	}
-	if d.stmts == nil {
-		d.stmts = map[string]*sql.Stmt{}
-	}
-	d.stmts[query] = s
-	return s
+	return errors.Join(d.W.Close(), d.DB.Close())
 }
 
 // Backup writes a consistent copy of the database at path to the file to

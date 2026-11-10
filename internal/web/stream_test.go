@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/klauspost/compress/zstd"
-	"github.com/zweiundeins/lith/edge"
 	lithlive "github.com/zweiundeins/lith/live"
 
 	"kanban/internal/app"
@@ -28,17 +27,28 @@ import (
 	webfiles "kanban/web"
 )
 
+// testOptions change testServer's defaults.
+type testOptions struct {
+	actions       int // actions per user and 10 s (0: no limit)
+	clientStreams int // streams per client address (0: lith's default)
+}
+
 // testServer runs the whole server on the database at path, seeding it
-// first if it is new.
-func testServer(t *testing.T, path string) (*httptest.Server, *app.App, func()) {
+// first if it is new. Its hub runs the build "test".
+func testServer(t *testing.T, path string, opts ...testOptions) (*httptest.Server, *app.App, func()) {
 	t.Helper()
+	var o testOptions
+	if len(opts) > 0 {
+		o = opts[0]
+	}
 	var hub *lithlive.Hub
-	d, err := db.Open(context.Background(), path, db.Options{Synchronous: "NORMAL", OnCommit: func(ts []string) { hub.Changed(ts) }})
+	d, err := db.Open(context.Background(), path, db.Options{Synchronous: "OFF", OnCommit: func(ts []string) { hub.Changed(ts) }})
 	if err != nil {
 		t.Fatal(err)
 	}
 	log := slog.New(slog.DiscardHandler)
-	hub = lithlive.New(lithlive.Options{Read: d.R, Tick: 5 * time.Millisecond, Heartbeat: 50 * time.Millisecond, HeartbeatSignal: views.PingSignal, Log: log})
+	hub = lithlive.New(lithlive.Options{Read: d.R, Tick: 5 * time.Millisecond, Heartbeat: 50 * time.Millisecond, HeartbeatSignal: views.PingSignal,
+		MaxStreamsPerClient: o.clientStreams, Build: "test", Stopping: Stopping, Log: log})
 	ctx, stopHub := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() { done <- hub.Run(ctx) }()
@@ -49,12 +59,12 @@ func testServer(t *testing.T, path string) (*httptest.Server, *app.App, func()) 
 		}
 	}
 	sub, _ := fs.Sub(webfiles.FS, "static")
-	static, err := edge.NewStatic(sub, staticPrefix)
+	static, err := NewStatic(sub)
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := &Server{App: a, Hub: hub, Seats: live.NewSeats(hub.Changed, time.Second), Render: NewRenderer(), Static: static, Log: log, Started: time.Now()}
-	srv := httptest.NewServer(s.Handler())
+	s := &Server{App: a, Hub: hub, Seats: live.NewSeats(hub.Changed, time.Second), Render: NewRenderer(), Static: static, Log: log, Started: time.Now(), Actions: o.actions}
+	srv := httptest.NewServer(s.Handler("test"))
 	stop := func() {
 		stopHub()
 		<-done
@@ -140,22 +150,34 @@ func short(events []event) []string {
 	return out
 }
 
-func post(t *testing.T, base, cookie, path, body string) {
+// post sends an action as the page does: tab and op in headers, the rest
+// in the body.
+func post(t *testing.T, base, cookie, path, tab, op, body string) {
+	t.Helper()
+	if res := send(t, base, cookie, path, tab, op, body); res.StatusCode != http.StatusNoContent {
+		t.Fatalf("POST %s: %s", path, res.Status)
+	}
+}
+
+func send(t *testing.T, base, cookie, path, tab, op, body string) *http.Response {
 	t.Helper()
 	req, _ := http.NewRequest("POST", base+path, strings.NewReader(body))
 	req.Header.Set("Cookie", cookie)
 	req.Header.Set("Origin", base)
 	req.Header.Set("Datastar-Request", "true")
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Tab-Id", tab)
+	req.Header.Set("Op-Id", op)
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
-	io.Copy(io.Discard, res.Body)
+	b, _ := io.ReadAll(res.Body)
 	res.Body.Close()
-	if res.StatusCode != http.StatusNoContent {
-		t.Fatalf("POST %s: %s", path, res.Status)
+	if len(b) > 0 {
+		t.Errorf("POST %s: %d answered with text %q", path, res.StatusCode, b)
 	}
+	return res
 }
 
 // A move's outcome reaches its tab after the frame that shows the move;
@@ -176,7 +198,7 @@ func TestOutcomeAfterFrameAndAcrossRestarts(t *testing.T) {
 
 	events, close := openStream(t, srv.URL, cookie, tab, `{"card":0,"outbox":0}`)
 	until(t, events, `id="lanes"`)
-	post(t, srv.URL, cookie, fmt.Sprintf("/boards/1/cards/%d/move", card.ID), fmt.Sprintf(`{"tab":%q,"op":"m1","col":%d,"before":"","seen":%d}`, tab, doing.ID, card.MoveVersion))
+	post(t, srv.URL, cookie, fmt.Sprintf("/boards/1/cards/%d/move", card.ID), tab, "m1", fmt.Sprintf(`{"col":%d,"before":"","seen":%d}`, doing.ID, card.MoveVersion))
 	seen := until(t, events, `"m1":"ok"`)
 	moved := regexp.MustCompile(fmt.Sprintf(`(?s)id="list-%d".*data-kanban-card="%d"`, doing.ID, card.ID))
 	frame := -1
@@ -194,7 +216,7 @@ func TestOutcomeAfterFrameAndAcrossRestarts(t *testing.T) {
 	close()
 
 	// A refusal while no stream is open, then a restart.
-	post(t, srv.URL, cookie, fmt.Sprintf("/boards/1/cards/%d/move", card.ID), fmt.Sprintf(`{"tab":%q,"op":"m2","col":%d,"before":"","seen":%d}`, tab, b.Lists[2].ID, card.MoveVersion))
+	post(t, srv.URL, cookie, fmt.Sprintf("/boards/1/cards/%d/move", card.ID), tab, "m2", fmt.Sprintf(`{"col":%d,"before":"","seen":%d}`, b.Lists[2].ID, card.MoveVersion))
 	stop()
 	srv, _, stop = testServer(t, path)
 	defer stop()
@@ -244,7 +266,7 @@ func TestPageStartsAtTheOutboxEnd(t *testing.T) {
 	srv, a, stop := testServer(t, filepath.Join(t.TempDir(), "k.db"))
 	defer stop()
 	cookie := session(t, a, "anna@example.com")
-	post(t, srv.URL, cookie, "/boards/1/lists", `{"tab":"another-tab-0000001","op":"o1","name":"Other"}`)
+	post(t, srv.URL, cookie, "/boards/1/lists", "another-tab-0000001", "o1", `{"name":"Other"}`)
 	end, err := app.OutboxEnd(context.Background(), a.DB.R)
 	if err != nil || end == 0 {
 		t.Fatalf("the outbox ends at %d, %v", end, err)
@@ -257,14 +279,14 @@ func TestPageStartsAtTheOutboxEnd(t *testing.T) {
 	events, close := openStream(t, srv.URL, cookie, tab, fmt.Sprintf(`{"card":0,"outbox":%d}`, end))
 	defer close()
 	until(t, events, `id="lanes"`)
-	post(t, srv.URL, cookie, "/boards/1/lists", fmt.Sprintf(`{"tab":%q,"op":"f1","name":"Fresh"}`, tab))
+	post(t, srv.URL, cookie, "/boards/1/lists", tab, "f1", `{"name":"Fresh"}`)
 	until(t, events, `"f1":"ok"`)
 }
 
 // tab_outbox has no index on the tab: the tab's view walks the ids after
 // the newest message it has, and must never scan the whole table.
 func TestOutboxQueryWalksTheIDs(t *testing.T) {
-	d, err := db.Open(context.Background(), filepath.Join(t.TempDir(), "k.db"), db.Options{Synchronous: "NORMAL"})
+	d, err := db.Open(context.Background(), filepath.Join(t.TempDir(), "k.db"), db.Options{Synchronous: "OFF"})
 	if err != nil {
 		t.Fatal(err)
 	}

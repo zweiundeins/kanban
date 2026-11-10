@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"slices"
 	"strconv"
@@ -15,6 +14,8 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/zweiundeins/lith/edge"
+	"github.com/zweiundeins/lith/sse"
+	"github.com/zweiundeins/lith/writer"
 
 	"kanban/internal/app"
 	"kanban/internal/views"
@@ -138,6 +139,8 @@ func (s *Server) boardPage(w http.ResponseWriter, r *http.Request) {
 		Presence: s.Render.Presence(b.Members, present),
 		Lanes:    renderBytes(views.Board(b, s.Render.Lanes(b).Full())),
 		Detail:   detail,
+		Build:    s.Hub.Build(),
+		Assets:   s.assets,
 	}))
 }
 
@@ -155,55 +158,104 @@ func (f *flexInt) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-// payload is every field an action may send.
+// payload is every field an action may send. The tab and the op come in
+// headers (request).
 type payload struct {
-	Tab     string  `json:"tab"`
-	Op      string  `json:"op"`
-	Name    string  `json:"name"`
-	Title   string  `json:"title"`
-	Text    string  `json:"text"`
-	Body    string  `json:"body"`
-	Day     string  `json:"day"`
-	Color   string  `json:"color"`
-	ID      string  `json:"id"`
-	List    flexInt `json:"list"`
-	Col     flexInt `json:"col"`
-	Before  flexInt `json:"before"`
-	Seen    flexInt `json:"seen"`
-	HasSeen bool    `json:"-"`
-	Card    flexInt `json:"card"`
-	On      bool    `json:"on"`
-	Done    bool    `json:"done"`
+	Name   string   `json:"name"`
+	Title  string   `json:"title"`
+	Text   string   `json:"text"`
+	Body   string   `json:"body"`
+	Day    string   `json:"day"`
+	Color  string   `json:"color"`
+	ID     string   `json:"id"`
+	List   flexInt  `json:"list"`
+	Col    flexInt  `json:"col"`
+	Before flexInt  `json:"before"`
+	Seen   *flexInt `json:"seen"` // nil: not sent
+	Card   flexInt  `json:"card"`
+	On     bool     `json:"on"`
+	Done   bool     `json:"done"`
+}
+
+// seen is the move version the page saw, or def when it sent none.
+func (p payload) seen(def int64) int64 {
+	if p.Seen == nil {
+		return def
+	}
+	return int64(*p.Seen)
+}
+
+// request is an action's user, board, tab and op.
+type request struct {
+	user     *app.User
+	board    int64
+	tab, op  string
+	streamID string // the tab's stream, for notices
 }
 
 // actionFunc runs one command. It sets a.Clear to the page's input signals
 // to empty once the command succeeded.
 type actionFunc func(ctx context.Context, r *http.Request, a app.Actor, board int64, p payload) (app.Outcome, error)
 
-// readPayload reads an action's user, board and body. Cross-site requests
-// never get here (edge.CSRF).
-func (s *Server) readPayload(w http.ResponseWriter, r *http.Request) (*app.User, int64, payload, bool) {
+// readAction reads an action's user, board, tab and op, then its body. The
+// tab and the op come in the Tab-Id and Op-Id headers, so a request over the
+// rate limit is answered, and its tab told why, before the body is read.
+// A status code carries no text: a person reads nothing of it, and what
+// they must know reaches their tab as a notice. Cross-site requests never
+// get here (edge.CSRF).
+func (s *Server) readAction(w http.ResponseWriter, r *http.Request) (request, payload, bool) {
 	var p payload
-	u := userOf(r)
-	if u == nil {
-		http.Error(w, "Log in again.", http.StatusUnauthorized)
-		return nil, 0, p, false
+	q := request{user: userOf(r), board: pathID(r, "b"), tab: r.Header.Get("Tab-Id"), op: r.Header.Get("Op-Id")}
+	if q.user == nil {
+		w.WriteHeader(http.StatusUnauthorized) // the page says it in its own words
+		return q, p, false
 	}
-	board := pathID(r, "b")
-	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 64<<10))
-	var keys map[string]json.RawMessage
-	if err == nil && json.Unmarshal(body, &keys) == nil {
-		_, p.HasSeen = keys["seen"]
+	if !tabRe.MatchString(q.tab) || !app.ValidOp(q.op) {
+		w.WriteHeader(http.StatusBadRequest) // no page of ours sends it
+		return q, p, false
 	}
-	if err != nil || json.Unmarshal(body, &p) != nil || !tabRe.MatchString(p.Tab) {
-		http.Error(w, "Bad request.", http.StatusBadRequest)
-		return nil, 0, p, false
+	q.streamID = app.TabTopic(q.user.ID, q.tab)
+	if s.actionRL != nil && !s.actionRL.Allow("u"+itoa(q.user.ID), 1, time.Now()) {
+		s.notify(q, "Too many changes at once. Wait a moment, then try again.")
+		w.WriteHeader(http.StatusTooManyRequests)
+		return q, p, false
 	}
-	if s.actionRL != nil && !s.actionRL.Allow("u"+itoa(u.ID), 1, time.Now()) {
-		http.Error(w, "Too many changes at once. Wait a moment.", http.StatusTooManyRequests)
-		return nil, 0, p, false
+	if err := sse.ReadSignalsLimit(w, r, &p, 64<<10); err != nil {
+		w.WriteHeader(http.StatusBadRequest) // no page of ours sends it
+		return q, p, false
 	}
-	return u, board, p, true
+	return q, p, true
+}
+
+// notify tells the tab what no command decided, in place of its op's
+// outcome: the op ends refused with msg, which the page shows.
+func (s *Server) notify(q request, msg string) {
+	sig := map[string]any{"_net": msg}
+	if q.op != "" {
+		sig["_acks"] = map[string]string{q.op: msg}
+	}
+	js, err := json.Marshal(sig)
+	if err != nil {
+		return
+	}
+	s.Hub.Notify(q.streamID, "op:"+q.op, sse.PatchSignals(js, false))
+}
+
+// failed answers an action whose command failed with a status, and tells
+// the tab when the failure was the server's.
+func (s *Server) failed(w http.ResponseWriter, r *http.Request, q request, err error) {
+	switch {
+	case errors.Is(err, errBadRequest):
+		w.WriteHeader(http.StatusBadRequest) // no page of ours sends it
+	case r.Context().Err() != nil:
+		// The client went away: nobody waits for an answer or a notice.
+	case errors.Is(err, writer.ErrClosed):
+		w.WriteHeader(http.StatusServiceUnavailable) // shutting down: Stopping told the tab
+	default:
+		s.Log.Error("action failed", "path", r.URL.Path, "err", err)
+		s.notify(q, "That change couldn’t be saved. Try again in a moment.")
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 }
 
 func renderBytes(c templ.Component) []byte {
@@ -216,17 +268,12 @@ func renderBytes(c templ.Component) []byte {
 // page on its stream, written by the command into the tab's outbox.
 func (s *Server) action(do actionFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		u, board, p, ok := s.readPayload(w, r)
+		q, p, ok := s.readAction(w, r)
 		if !ok {
 			return
 		}
-		_, err := do(r.Context(), r, app.Actor{User: u.ID, Op: p.Op, Tab: p.Tab}, board, p)
-		if errors.Is(err, errBadRequest) {
-			http.Error(w, "Bad request.", http.StatusBadRequest)
-			return
-		}
-		if err != nil {
-			s.fail(w, r, err)
+		if _, err := do(r.Context(), r, app.Actor{User: q.user.ID, Op: q.op, Tab: q.tab}, q.board, p); err != nil {
+			s.failed(w, r, q, err)
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -234,21 +281,21 @@ func (s *Server) action(do actionFunc) http.HandlerFunc {
 }
 
 // ui handles a command about the tab's own view.
-func (s *Server) ui(do func(ctx context.Context, u *app.User, board int64, p payload) error) http.HandlerFunc {
+func (s *Server) ui(do func(ctx context.Context, q request, p payload) error) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		u, board, p, ok := s.readPayload(w, r)
+		q, p, ok := s.readAction(w, r)
 		if !ok {
 			return
 		}
-		if member, err := s.App.IsMember(r.Context(), board, u.ID); err != nil || !member {
-			http.Error(w, "Not a member of this board.", http.StatusForbidden)
+		if member, err := s.App.IsMember(r.Context(), q.board, q.user.ID); err != nil {
+			s.failed(w, r, q, err)
+			return
+		} else if !member {
+			w.WriteHeader(http.StatusForbidden) // no page of ours sends it
 			return
 		}
-		if err := do(r.Context(), u, board, p); errors.Is(err, errBadRequest) {
-			http.Error(w, "Bad request.", http.StatusBadRequest)
-			return
-		} else if err != nil {
-			s.fail(w, r, err)
+		if err := do(r.Context(), q, p); err != nil {
+			s.failed(w, r, q, err)
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -257,16 +304,16 @@ func (s *Server) ui(do func(ctx context.Context, u *app.User, board int64, p pay
 
 // openCard shows a card in the tab's dialog. Which card a tab shows lives
 // with its stream: without one, the page sends it when it connects.
-func (s *Server) openCard(_ context.Context, u *app.User, board int64, p payload) error {
+func (s *Server) openCard(_ context.Context, q request, p payload) error {
 	if p.Card < 0 {
 		return errBadRequest
 	}
-	s.Seats.Open(u.ID, p.Tab, int64(p.Card))
+	s.Seats.Open(q.user.ID, q.tab, int64(p.Card))
 	return nil
 }
 
-func (s *Server) dismissToast(ctx context.Context, u *app.User, board int64, p payload) error {
-	return s.App.DismissToast(ctx, u.ID, board, p.Tab, p.ID)
+func (s *Server) dismissToast(ctx context.Context, q request, p payload) error {
+	return s.App.DismissToast(ctx, q.user.ID, q.board, q.tab, p.ID)
 }
 
 // The actions.
@@ -281,11 +328,7 @@ func (s *Server) renameList(ctx context.Context, r *http.Request, a app.Actor, b
 }
 
 func (s *Server) moveList(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, error) {
-	seen := int64(-1)
-	if p.HasSeen {
-		seen = int64(p.Seen)
-	}
-	return s.App.MoveList(ctx, a, b, pathID(r, "l"), int64(p.Before), seen)
+	return s.App.MoveList(ctx, a, b, pathID(r, "l"), int64(p.Before), p.seen(-1))
 }
 
 func (s *Server) archiveList(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, error) {
@@ -298,7 +341,7 @@ func (s *Server) createCard(ctx context.Context, r *http.Request, a app.Actor, b
 }
 
 func (s *Server) moveCard(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, error) {
-	return s.App.MoveCard(ctx, a, b, app.Move{Card: pathID(r, "c"), List: int64(p.Col), Before: int64(p.Before), Seen: int64(p.Seen)})
+	return s.App.MoveCard(ctx, a, b, app.Move{Card: pathID(r, "c"), List: int64(p.Col), Before: int64(p.Before), Seen: p.seen(0)})
 }
 
 func (s *Server) renameCard(ctx context.Context, r *http.Request, a app.Actor, b int64, p payload) (app.Outcome, error) {
@@ -364,16 +407,16 @@ func (s *Server) loginPage(w http.ResponseWriter, r *http.Request) {
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "Bad request.", http.StatusBadRequest)
-		return
-	}
-	c, err := r.Cookie(csrfCookie)
-	if err != nil || c.Value == "" || r.PostFormValue("csrf") != c.Value {
-		http.Error(w, "The form expired. Reload the page and try again.", http.StatusForbidden)
+		w.WriteHeader(http.StatusBadRequest) // no form of ours sends it
 		return
 	}
 	email := r.PostFormValue("email")
 	page := s.pageOf(r, "Log in")
+	c, err := r.Cookie(csrfCookie)
+	if err != nil || c.Value == "" || r.PostFormValue("csrf") != c.Value {
+		s.html(w, r, http.StatusForbidden, views.Login(page, email, "The form expired. Log in again.", s.csrfToken(w, r)))
+		return
+	}
 	if !s.loginRL.Allow("ip"+edge.ClientKey(r), 1, time.Now()) {
 		s.html(w, r, http.StatusTooManyRequests, views.Login(page, email, "Too many attempts. Wait a minute and try again.", c.Value))
 		return

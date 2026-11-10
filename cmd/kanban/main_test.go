@@ -39,6 +39,20 @@ func TestMetrics(t *testing.T) {
 	if res.StatusCode != http.StatusNotFound || strings.Contains(string(b), namespace+"_") {
 		t.Errorf("the public listener's /metrics: %d\n%.300s", res.StatusCode, b)
 	}
+	if body := get(t, metrics+"/stats"); !strings.Contains(body, `"writer"`) {
+		t.Errorf("the metrics listener's /stats: %.300s", body)
+	}
+	for _, p := range []string{"/stats", "/_stats"} {
+		res, err := http.Get(public + p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		b, _ := io.ReadAll(res.Body)
+		res.Body.Close()
+		if res.StatusCode == http.StatusOK && strings.Contains(string(b), `"writer"`) {
+			t.Errorf("the public listener serves the stats at %s", p)
+		}
+	}
 }
 
 // TestDashboard checks that every metric of lith/prom and dbmetrics
@@ -161,7 +175,7 @@ func run(t *testing.T) (public, metrics string) {
 	addr, maddr := freeAddr(t), freeAddr(t)
 	var c config
 	f := flags("serve", &c)
-	if err := f.Parse([]string{"-addr", addr, "-metrics", maddr, "-db", filepath.Join(t.TempDir(), "kanban.db"), "-synchronous", "NORMAL"}); err != nil {
+	if err := f.Parse([]string{"-addr", addr, "-metrics", maddr, "-db", filepath.Join(t.TempDir(), "kanban.db"), "-synchronous", "OFF"}); err != nil {
 		t.Fatal(err)
 	}
 	if err := seed(c, false); err != nil {
@@ -182,13 +196,13 @@ func run(t *testing.T) (public, metrics string) {
 		}
 	})
 	public, metrics = "http://"+addr, "http://"+maddr
-	waitFor(t, "/_health", func() bool {
+	waitFor(t, "/readyz", func() bool {
 		select {
 		case <-done:
 			t.Fatalf("serve: %v", err)
 		default:
 		}
-		res, err := http.Get(public + "/_health")
+		res, err := http.Get(public + "/readyz")
 		if err != nil {
 			return false
 		}
@@ -278,7 +292,9 @@ func act(t *testing.T, base string) {
 	}
 	next("event: datastar-patch-elements") // the board's first frame
 
-	req, _ = http.NewRequest("POST", base+"/boards/1/lists", strings.NewReader(`{"tab":"`+tab+`","op":"op1","name":"Metrics"}`))
+	req, _ = http.NewRequest("POST", base+"/boards/1/lists", strings.NewReader(`{"name":"Metrics"}`))
+	req.Header.Set("Tab-Id", tab)
+	req.Header.Set("Op-Id", "op1")
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Datastar-Request", "true")
 	req.Header.Set("Origin", base)

@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand/v2"
+	"net"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -37,6 +38,7 @@ import (
 
 var (
 	base     = flag.String("base", "http://127.0.0.1:8080", "server")
+	statsURL = flag.String("stats", "", "the server's stats on its metrics listener; empty: -base's host at its port + 100, /stats")
 	tabs     = flag.Int("tabs", 50, "simulated tabs (spread over the four demo accounts)")
 	board    = flag.Int("board", 2, "board id")
 	duration = flag.Duration("duration", 30*time.Second, "how long to move cards")
@@ -276,8 +278,10 @@ func (t *tab) move(n int) {
 	lane := t.lanes[rand.IntN(len(t.lanes))]
 	t.mu.Unlock()
 	op := fmt.Sprintf("lt%s%d", strings.ReplaceAll(t.id[:8], "-", "x"), n)
-	payload, _ := json.Marshal(map[string]any{"tab": t.id, "op": op, "col": lane, "before": "", "seen": c[1]})
+	payload, _ := json.Marshal(map[string]any{"col": lane, "before": "", "seen": c[1]})
 	req, _ := http.NewRequest("POST", fmt.Sprintf("%s/boards/%d/cards/%d/move", *base, *board, c[0]), bytes.NewReader(payload))
+	req.Header.Set("Tab-Id", t.id)
+	req.Header.Set("Op-Id", op)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Datastar-Request", "true")
 	req.Header.Set("Origin", *base)
@@ -411,8 +415,24 @@ func ms(ds []time.Duration) map[string]float64 {
 	return map[string]float64{"p50": f(pct(ds, .5)), "p95": f(pct(ds, .95)), "p99": f(pct(ds, .99)), "max": f(pct(ds, 1))}
 }
 
+// statsAt is -stats, or where the server's -metrics auto puts it.
+func statsAt() string {
+	if *statsURL != "" {
+		return *statsURL
+	}
+	u, err := url.Parse(*base)
+	if err != nil {
+		return ""
+	}
+	port, err := strconv.Atoi(u.Port())
+	if err != nil {
+		return ""
+	}
+	return "http://" + net.JoinHostPort(u.Hostname(), strconv.Itoa(port+100)) + "/stats"
+}
+
 func health() map[string]any {
-	res, err := http.Get(*base + "/_health")
+	res, err := http.Get(statsAt())
 	if err != nil {
 		return nil
 	}

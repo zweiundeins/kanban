@@ -43,10 +43,11 @@ func registerDriver(log *slog.Logger) error {
 	return driverErr
 }
 
-// metrics serves kanban's numbers in Prometheus' text format at every path:
-// the writer's, the hub's and the streams' budget's (lith/prom), the
-// statements' (dbmetrics), the Go runtime's and the process's.
-func metrics(w *writer.Writer, hub *live.Hub, log *slog.Logger) http.Handler {
+// metrics serves kanban's numbers in Prometheus' text format at every path
+// but /stats, which is stats' JSON: the writer's, the hub's and the
+// streams' budget's (lith/prom), the statements' (dbmetrics), the Go
+// runtime's and the process's.
+func metrics(w *writer.Writer, hub *live.Hub, stats http.HandlerFunc, log *slog.Logger) http.Handler {
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(
 		collectors.NewGoCollector(),
@@ -54,7 +55,10 @@ func metrics(w *writer.Writer, hub *live.Hub, log *slog.Logger) http.Handler {
 		prom.New(namespace, prom.Sources{Writer: w, Hub: hub}), // the budget is the hub's
 		dbMetrics,
 	)
-	return promhttp.HandlerFor(reg, promhttp.HandlerOpts{ErrorLog: slog.NewLogLogger(log.Handler(), slog.LevelWarn)})
+	mux := http.NewServeMux()
+	mux.Handle("/", promhttp.HandlerFor(reg, promhttp.HandlerOpts{ErrorLog: slog.NewLogLogger(log.Handler(), slog.LevelWarn)}))
+	mux.HandleFunc("GET /stats", stats)
+	return mux
 }
 
 // metricsListen resolves -metrics: auto is 127.0.0.1 at -addr's port + 100,

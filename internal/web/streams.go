@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/zweiundeins/lith/edge"
 	lithlive "github.com/zweiundeins/lith/live"
 	"github.com/zweiundeins/lith/sqlite"
 	"github.com/zweiundeins/lith/sse"
@@ -20,41 +21,80 @@ import (
 
 // stream is the page's live view: the whole board after every change, who
 // is on it, its card's dialog, and its own messages. The page sends the
-// card it shows and the last message it has in Datastar's signals. On a
-// deploy the stream ends with sse.Reconnect, so the page opens it again.
+// card it shows, the last message it has, and the build and assets that
+// rendered it in Datastar's signals. On a deploy the stream ends with
+// Stopping's notice and sse.Reconnect, so the page opens it again; a page
+// whose scripts or stylesheet changed is asked to reload (refresh). The
+// stream counts under the client's address (live.Options.MaxStreamsPerClient),
+// not under the account: the demo's accounts are shared by everyone. Its
+// statuses carry no text: the page says what went wrong in its own words.
 func (s *Server) stream(w http.ResponseWriter, r *http.Request) {
 	u := userOf(r)
 	if u == nil {
-		http.Error(w, "Log in again.", http.StatusUnauthorized)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 	board := pathID(r, "b")
 	tab := r.URL.Query().Get("tab")
-	if !tabRe.MatchString(tab) {
-		http.Error(w, "Bad tab.", http.StatusBadRequest)
+	var page views.StreamState
+	if !tabRe.MatchString(tab) || sse.ReadSignals(w, r, &page) != nil {
+		w.WriteHeader(http.StatusBadRequest) // no page of ours sends it
 		return
 	}
-	if ok, err := s.App.IsMember(r.Context(), board, u.ID); err != nil || !ok {
-		http.Error(w, "Not a member of this board.", http.StatusForbidden)
+	if ok, err := s.App.IsMember(r.Context(), board, u.ID); err != nil {
+		s.Log.Error("stream", "board", board, "err", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	} else if !ok {
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
-	var page struct {
-		Card   int64 `json:"card"`
-		Outbox int64 `json:"outbox"`
-	}
-	_ = json.Unmarshal([]byte(r.URL.Query().Get("datastar")), &page)
 	seat := s.Seats.Join(u.ID, board, tab, max(page.Card, 0))
 	defer s.Seats.Leave(seat)
 	err := s.Hub.Serve(w, r, lithlive.Spec{
 		ID:        app.TabTopic(u.ID, tab),
+		Client:    edge.ClientKey(r),
 		Views:     []lithlive.View{s.tabView(u.ID, tab, page.Outbox), s.boardView(board), s.presenceView(board)},
 		WriteTick: live.NewStream(u.ID, seat, page.Outbox).WriteTick,
 		Reconnect: views.StreamID,
+		Build:     page.Build,
+		Refresh: func(context.Context, lithlive.RefreshRequest) ([][]byte, error) {
+			return s.refresh(page.Assets), nil
+		},
 	})
 	if err != nil && r.Context().Err() == nil {
 		s.Log.Debug("stream ended", "board", board, "err", err)
 	}
 }
+
+// update asks the page to reload (views.UpdateSignal).
+var update = sse.PatchSignals([]byte(`{"`+views.UpdateSignal+`":true}`), false)
+
+// refresh is the stream's live.Spec.Refresh, for a page that a former build
+// rendered. The stream's views send everything that changes on the page
+// afresh: the board, the open card's dialog, who is there and the tab's
+// messages. Only the shell around them stays as that build drew it, so a
+// page with the same scripts and stylesheet is current (nil), and one whose
+// assets changed is asked to reload: new markup would meet old code.
+func (s *Server) refresh(assets string) [][]byte {
+	if assets == s.assets {
+		return nil
+	}
+	return [][]byte{update}
+}
+
+// Stopping is the hub's live.Options.Stopping: a stream that a deploy ends
+// tells its page why, in the offline banner, which the new process's first
+// board frame clears.
+func Stopping(lithlive.Spec) [][]byte { return [][]byte{stopping} }
+
+var stopping = func() []byte {
+	js, err := json.Marshal(map[string]string{"_offline": views.Updating})
+	if err != nil {
+		panic(err)
+	}
+	return sse.PatchSignals(js, false)
+}()
 
 // reads is what a view's Render queries: the statements its worker
 // prepared once, in the render's transaction.

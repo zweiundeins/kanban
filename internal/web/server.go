@@ -8,8 +8,10 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"regexp"
@@ -20,6 +22,7 @@ import (
 
 	"github.com/zweiundeins/lith/edge"
 	lithlive "github.com/zweiundeins/lith/live"
+	"github.com/zweiundeins/lith/template"
 
 	"kanban/internal/app"
 	"kanban/internal/live"
@@ -28,20 +31,32 @@ import (
 
 // Server holds everything the handlers need.
 type Server struct {
-	App      *app.App
-	Hub      *lithlive.Hub
-	Seats    *live.Seats
-	Render   *Renderer
-	Static   *edge.Static
-	Log      *slog.Logger
-	Secure   bool     // cookies only over HTTPS, HSTS
-	Origins  []string // allowed Origin values besides the request's own host
-	Actions  int      // actions a user may send per 10 s (0: no limit)
-	Started  time.Time
-	BuildRef string
+	App     *app.App
+	Hub     *lithlive.Hub
+	Seats   *live.Seats
+	Render  *Renderer
+	Static  *edge.Static
+	Log     *slog.Logger
+	Secure  bool     // cookies only over HTTPS, HSTS
+	Origins []string // allowed Origin values besides the request's own host
+	Actions int      // actions a user may send per 10 s (0: no limit)
+	Started time.Time
 
 	loginRL  *edge.Limiter
 	actionRL *edge.Limiter
+	assets   string // the version of the page's scripts and stylesheet
+}
+
+// NewStatic serves the files of fsys under /static/, and lith's Datastar
+// build as views.DatastarJS: Starbase's components in fsys are of the same
+// build (web/static/vendor/VERSION).
+func NewStatic(fsys fs.FS) (*edge.Static, error) {
+	static, err := edge.NewStatic(fsys, staticPrefix)
+	if err != nil {
+		return nil, err
+	}
+	static.Add(views.DatastarJS, template.Datastar())
+	return static, nil
 }
 
 const (
@@ -72,16 +87,17 @@ var tabRe = regexp.MustCompile(`^[A-Za-z0-9_-]{16,40}$`)
 
 const staticPrefix = "/static/"
 
-// Handler returns the routes with their middleware.
-func (s *Server) Handler() http.Handler {
+// Handler returns the routes with their middleware. version is the build's,
+// which /healthz names.
+func (s *Server) Handler(version string) http.Handler {
 	s.loginRL = edge.NewLimiter(10.0/60, 10)
 	if s.Actions > 0 {
 		s.actionRL = edge.NewLimiter(float64(s.Actions)/10, s.Actions)
 	}
+	s.assets = s.assetsVersion()
 
 	mux := http.NewServeMux()
-	mux.Handle("GET "+staticPrefix, s.Static)
-	mux.HandleFunc("GET /_health", s.health)
+	mux.Handle("GET "+staticPrefix, quiet(s.Static))
 	mux.HandleFunc("GET /login", s.loginPage)
 	mux.HandleFunc("POST /login", s.login)
 	mux.HandleFunc("POST /logout", s.logout)
@@ -121,7 +137,39 @@ func (s *Server) Handler() http.Handler {
 	}.Handler(h)
 	h = edge.Compress(h)
 	h = edge.Recover(s.Log, h)
-	return s.logged(h)
+	h = edge.LogRequests(s.Log, h)
+
+	// The probes skip the edge: no session lookup, no log line.
+	ready := &edge.Ready{Log: s.Log}
+	ready.Add("database", func(ctx context.Context) error {
+		var one int
+		return s.App.DB.R.QueryRowContext(ctx, "SELECT 1").Scan(&one)
+	})
+	ready.Add("static", s.Static.Warmed)
+	probes := http.NewServeMux()
+	probes.Handle("GET /healthz", edge.Health(version))
+	probes.Handle("GET /readyz", ready)
+	probes.Handle("/", h)
+	return probes
+}
+
+// quiet logs h's requests at Debug: static files and the stats.
+func quiet(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		edge.Quiet(r)
+		h.ServeHTTP(w, r)
+	})
+}
+
+// assetsVersion names the page's scripts and stylesheet: a page that a
+// former build rendered with others needs a reload (refresh).
+func (s *Server) assetsVersion() string {
+	files := append([]string{"app.css", views.DatastarJS}, boardModules...)
+	h := sha256.New()
+	for _, f := range files {
+		h.Write([]byte(s.Static.URL(f) + "\n"))
+	}
+	return hex.EncodeToString(h.Sum(nil)[:6])
 }
 
 // policy is the content security policy: Datastar evaluates expressions
@@ -144,45 +192,6 @@ func (s *Server) policy() edge.CSP {
 	}
 }
 
-type statusWriter struct {
-	http.ResponseWriter
-	status int
-}
-
-func (w *statusWriter) WriteHeader(code int) {
-	if w.status == 0 {
-		w.status = code
-	}
-	w.ResponseWriter.WriteHeader(code)
-}
-
-func (w *statusWriter) Write(b []byte) (int, error) {
-	if w.status == 0 {
-		w.status = http.StatusOK
-	}
-	return w.ResponseWriter.Write(b)
-}
-
-func (w *statusWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
-
-// logged logs every request; static files and the health check only when
-// debugging.
-func (s *Server) logged(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		sw := &statusWriter{ResponseWriter: w}
-		next.ServeHTTP(sw, r)
-		level := slog.LevelInfo
-		if strings.HasPrefix(r.URL.Path, staticPrefix) || r.URL.Path == "/_health" {
-			level = slog.LevelDebug
-		}
-		if sw.status >= 500 {
-			level = slog.LevelError
-		}
-		s.Log.Log(r.Context(), level, "http", "method", r.Method, "path", r.URL.Path, "status", sw.status, "ms", time.Since(start).Milliseconds())
-	})
-}
-
 // session puts the logged-in user (if any) into the request's context.
 func (s *Server) session(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -199,7 +208,10 @@ func (s *Server) session(next http.Handler) http.Handler {
 	})
 }
 
-func (s *Server) health(w http.ResponseWriter, r *http.Request) {
+// Stats is what the load test and the benchmarks read of the server's
+// state, served on the metrics listener only. Liveness is /healthz,
+// readiness /readyz.
+func (s *Server) Stats(w http.ResponseWriter, r *http.Request) {
 	var one int
 	err := s.App.DB.R.QueryRowContext(r.Context(), "SELECT 1").Scan(&one)
 	var ms runtime.MemStats
@@ -210,7 +222,7 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 		"memory":     map[string]uint64{"heap_alloc": ms.HeapAlloc, "heap_sys": ms.HeapSys, "sys": ms.Sys, "gc_cycles": uint64(ms.NumGC), "total_alloc": ms.TotalAlloc},
 		"process":    process(),
 		"goroutines": runtime.NumGoroutine(),
-		"build":      s.BuildRef,
+		"build":      s.Hub.Build(),
 		"uptime_s":   int(time.Since(s.Started).Seconds()),
 		"writer": map[string]any{
 			"commands": ws.Commands, "batches": ws.Batches, "failed": ws.Failures, "max_batch": ws.MaxBatch,

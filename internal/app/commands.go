@@ -43,13 +43,16 @@ type Actor struct {
 
 var opRe = regexp.MustCompile(`^[A-Za-z0-9_-]{1,40}$`)
 
+// ValidOp reports whether op is an op id a page makes, or none.
+func ValidOp(op string) bool { return op == "" || opRe.MatchString(op) }
+
 // act runs fn as one writer command on board for actor: membership is
 // checked, lith's OnceResult records the op's answer, a refusal too, so a
 // retried op gets its first one, and the outcome is queued for the actor's
 // tab, a replayed one again. Only real errors (the database) fail the
 // command.
 func (a *App) act(ctx context.Context, actor Actor, board int64, fn func(tx *writer.Tx) (notice string, err error)) (Outcome, error) {
-	if actor.Op != "" && !opRe.MatchString(actor.Op) {
+	if !ValidOp(actor.Op) {
 		return Outcome{}, fmt.Errorf("bad op id")
 	}
 	run := writer.ResultFunc(func(tx *writer.Tx) ([]byte, error) {

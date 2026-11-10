@@ -4,7 +4,7 @@ A collaborative Kanban board, rendered on the server. Several people move cards 
 
 Live demo: [kanban.zweiundeins.gmbh](https://kanban.zweiundeins.gmbh), with the demo accounts below; it goes back to its seed every night at 03:00 UTC.
 
-It is one static Go binary (17.1 MB) with one SQLite file, Datastar in the browser and [Starbase](https://starbase.zweiundeins.gmbh) components for dragging, renaming in place, the card dialog and messages. It runs on lith, the runtime our Go and SQLite apps share: its single writer, its render loop with shared views, its compressed streams and its request edge. It is a case study by [zwei und eins](https://zweiundeins.gmbh), compared with [PLANKA](https://planka.app) Community (React, Redux, Sails.js, PostgreSQL, WebSockets).
+It is one static Go binary (17.5 MB) with one SQLite file, Datastar in the browser and [Starbase](https://starbase.zweiundeins.gmbh) components for dragging, renaming in place, the card dialog and messages. It runs on lith, the runtime our Go and SQLite apps share: its single writer, its render loop with shared views, its compressed streams and its request edge. It is a case study by [zwei und eins](https://zweiundeins.gmbh), compared with [PLANKA](https://planka.app) Community (React, Redux, Sails.js, PostgreSQL, WebSockets).
 
 ## What it does
 
@@ -22,11 +22,11 @@ Compared with PLANKA, there are no card members, search or filters, other board 
 - **Compressed streams.** A stream compresses with zstd when the browser accepts it, else brotli. The window is larger than a frame and a frame carries only the lists that changed, so a frame after one move costs about half a kilobyte on the wire. The window is per connection, so each stream compresses for itself; everything else about a frame is done once, and at most half the CPUs compress at a time, never while waiting for the network, so actions don't wait behind a burst of frames.
 - **One writer, batched.** All writes go through one goroutine and one SQLite connection. While a batch commits, new commands queue up. The next transaction takes all of them, each in its own savepoint, so one refusal undoes only itself. Checks like "did this card move since the page was drawn" run inside the command, in microseconds, with no lock held across the network. This follows Anders Murphy's findings on SQLite and contention. The writer prepares each statement once on its connection and keeps it, since the driver would parse every statement again on every call, and it checkpoints the WAL between batches. Reads use their own pool. SQLite runs with `synchronous=FULL`, so it is as durable as PostgreSQL's defaults.
 - **No optimistic updates.** A dropped card stays where the server last put it, looking pending, until the frame that shows it in its new place arrives. Meanwhile the board (Starbase's landing marker) opens a gap where the card was dropped and shows a dashed copy there: what the person did, not what the server has done. Then the move's outcome follows on the same stream. A refused move is marked and explained. Every action carries an op id, so a retried request gets the first answer instead of acting twice.
-- **Robust streams.** The stream reconnects after a deploy or restart and always starts with the whole board. An action's outcome is written to SQLite by the same command, so it survives a deploy: the page says which outcome it got last, and the new process sends the rest, after a frame that shows them. A watchdog replaces a connection that went quiet. A banner says when the page may be out of date.
+- **Robust streams.** The stream reconnects after a deploy or restart and always starts with the whole board. An action's outcome is written to SQLite by the same command, so it survives a deploy: the page says which outcome it got last, and the new process sends the rest, after a frame that shows them. A watchdog replaces a connection that went quiet. A banner says when the page may be out of date, and during a deploy that the server is updating. A page whose scripts or stylesheet the deploy changed asks for a reload.
 
 ## Run it
 
-Needs Go 1.27 or later. Chromium and Node 24 are only needed for the end-to-end tests.
+Needs Go 1.27.3 or later. Chromium and Node 24 are only needed for the end-to-end tests.
 
 ```sh
 go tool task dev        # seed data/kanban.db if needed, run with live reload on http://127.0.0.1:8080
@@ -41,13 +41,17 @@ The demo accounts are `anna@example.com`, `ben@example.com`, `chiara@example.com
 - `-addr` and `-db`
 - `-metrics`, where the metrics for Prometheus listen, never on the public listener: `auto` (the default) is 127.0.0.1 at `-addr`'s port + 100, `off` is none, and an address off loopback is refused
 - `-secure`, behind a TLS proxy (the client's address comes from the proxy's headers when the request arrives over loopback)
+- `-trusted-proxies` for a proxy on another host or a container bridge, whose headers count too: a comma-separated list of addresses and CIDRs
+- `-client-streams`, how many live streams one client address may hold open (16; `-1` for a load test from one address)
 - `-origins` for allowed `Origin` values
 - `-reset-at 03:00` to put a public demo back to the seed every night, in process, keeping the accounts
 - `-synchronous NORMAL` (faster, but can lose the last commits on power loss)
 - `-brotli-level` and `-brotli-lgwin`, for the streams that get brotli
 - `-zstd-level` (`fastest`, lith's default, `default`, `better` or `best`), for the streams that get zstd
 
-`kanban backup -db … -to …` writes a consistent copy while the server runs.
+`kanban backup -db … -to …` writes a consistent copy while the server runs. `kanban --version` prints the build: `-ldflags "-X main.version=…"`, or else the commit.
+
+`/healthz` answers `ok <build>` while the process serves, and checks nothing. `/readyz` answers 200 once the database answers on the read pool and the static files are compressed, and 503 naming the check that failed.
 
 ## Deploy
 
@@ -59,7 +63,7 @@ scp -r kanban deploy/* root@host:/tmp/kanban-deploy/
 ssh root@host sh /tmp/kanban-deploy/install.sh
 ```
 
-On SIGTERM the server stops accepting connections, ends the streams and commits what is queued. The pages reconnect to the new process.
+On SIGTERM the server stops accepting connections, ends the streams and commits what is queued. The pages say the server is updating and reconnect to the new process.
 
 The unit listens on 127.0.0.1:8095 for Caddy and serves the metrics on 127.0.0.1:8195 for Prometheus. It may bind those two ports and no other, and reaches no host but its own. A port changes in the unit's flags and `SocketBindAllow` together, and in `kanban.caddy` or `observability/kanban.metrics.yml`; `TestMetricsPort` checks that the unit and the scrape file agree.
 
@@ -69,7 +73,7 @@ The host keeps its own configs for Caddy, Prometheus and Alloy, and each loads a
 
 - `deploy/kanban.caddy` as `/etc/caddy/sites/kanban.caddy`: the site block, with its JSON access log in `/var/log/caddy/kanban-access.log`.
 - `deploy/observability/kanban.metrics.yml` as `/etc/prometheus/apps/kanban.yml`: Prometheus scrapes `127.0.0.1:8195`, labelled `app: kanban` and `slot: prod`, and the host's "lith apps" dashboard and alert rules show kanban: `kanban_writer_*`, `kanban_live_*`, `kanban_sse_budget_*`, `kanban_db_*`, `go_*` and `process_*`. Prometheus watches the folder.
-- `deploy/observability/kanban.targets.yml` as `/etc/prometheus/targets/kanban.yml`: blackbox probes of `/`, a redirect (the host's `http_redirect` module), and `/login` (`http_2xx_kanban`, which wants "Kanban" in the body). Prometheus watches the folder.
+- `deploy/observability/kanban.targets.yml` as `/etc/prometheus/targets/kanban.yml`: blackbox probes of `/`, a redirect (the host's `http_redirect` module), `/login` (`http_2xx_kanban`, which wants "Kanban" in the body), and `/healthz` (the host's `http_2xx_ok`). Prometheus watches the folder.
 - `deploy/observability/kanban.alloy` as `/etc/alloy/kanban.alloy`: Caddy's access log as `{job="caddy", site="kanban"}`, through the host's pipeline for access logs.
 
 `deploy/install-dropins.sh` installs the scrape target, the probes and the Alloy file, each only where its service is installed, reloads Alloy, and puts the old file back if Alloy refuses the new one. `install.sh` runs it last; on its own it changes nothing else (no seed, no restart), so run it alone after changing them:
@@ -129,7 +133,7 @@ Same boards in both apps; the measured person on a slowed phone (4x CPU) behind 
 
 ## Licence
 
-MIT. The vendored Starbase components in `web/static/vendor/starbase` (one file each) are MIT. Those from derekr's PD rockets (`kanban-board`, `inline-edit`) are Beer-Ware. Datastar is MIT. See `web/static/vendor/VERSION`.
+MIT. The vendored Starbase components in `web/static/vendor/starbase` (one file each) are MIT. Those from derekr's PD rockets (`kanban-board`, `inline-edit`) are Beer-Ware. See `web/static/vendor/VERSION`. Datastar (MIT) comes with lith, as Starbase patches it.
 
 ## Maintainer
 

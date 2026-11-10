@@ -4,3 +4,7 @@
   labels: { service: kanban, module: http_redirect }
 - targets: ['https://kanban.zweiundeins.gmbh/login']
   labels: { service: kanban, module: http_2xx_kanban }
+# Liveness, lith's edge.Health: "ok <build>". http_2xx_ok is the host's
+# generic module for /healthz (lith's monitoring guide).
+- targets: ['https://kanban.zweiundeins.gmbh/healthz']
+  labels: { service: kanban, module: http_2xx_ok }

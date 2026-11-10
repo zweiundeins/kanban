@@ -1,4 +1,4 @@
-/*! sb-kanban-board, version kanban-board@d12d7e6bd2c6: its modules in one file */
+/*! sb-kanban-board, version kanban-board@35c72cffc12c: its modules in one file */
 import{rocket as nt}from"datastar";/*!
  * From PD rockets by derekr (https://github.com/derekr/pd-rockets, v2026-09-28-2), vendored by
  * `go run ./cmd/vendorpd` with patches/pd-rockets applied, pd- names renamed to sb-.

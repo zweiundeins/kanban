@@ -26,11 +26,15 @@ kanban=${KANBAN:-$tmp/kanban}
 [ -n "${KANBAN:-}" ] || CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o "$kanban" ./cmd/kanban
 loadtest=${LOADTEST:-$tmp/loadtest}
 [ -n "${LOADTEST:-}" ] || go build -o "$loadtest" ./cmd/loadtest
+# All tabs come from one address: lift the cap of streams per client, where
+# the binary has one (lith v0.4.1 and later).
+limits="-action-limit 0"
+"$kanban" serve -h 2>&1 | grep -q -- -client-streams && limits="$limits -client-streams -1"
 for i in $(seq 1 "$runs"); do
 	echo "$configs" | while read -r tabs interval; do
 		rm -f "$tmp"/k.db*
 		"$kanban" seed -db "$tmp/k.db" >/dev/null
-		taskset -c "$server_cpus" "$kanban" serve -db "$tmp/k.db" -addr 127.0.0.1:18095 -action-limit 0 ${SERVER_ARGS:-} 2>"$tmp/server.log" &
+		taskset -c "$server_cpus" "$kanban" serve -db "$tmp/k.db" -addr 127.0.0.1:18095 $limits ${SERVER_ARGS:-} 2>"$tmp/server.log" &
 		server=$!
 		sleep 1
 		f="$out/load-$tabs-$(date -u +%Y%m%dT%H%M%S).json"

@@ -1,6 +1,6 @@
 module kanban
 
-go 1.27.2
+go 1.27.3
 
 require (
 	github.com/a-h/templ v0.3.1070
@@ -8,9 +8,9 @@ require (
 	github.com/klauspost/compress v1.20.3
 	github.com/prometheus/client_golang v1.25.0
 	github.com/yuin/goldmark v1.8.6
-	github.com/zweiundeins/lith v0.3.0
+	github.com/zweiundeins/lith v0.5.5
 	github.com/zweiundeins/lith/dbmetrics/prom v0.1.0
-	github.com/zweiundeins/lith/prom v0.3.0
+	github.com/zweiundeins/lith/prom v0.5.5
 	golang.org/x/crypto v0.58.0
 )
 

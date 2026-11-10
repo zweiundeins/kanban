@@ -40,14 +40,22 @@ import (
 	webfiles "kanban/web"
 )
 
+// version is set at build time: -ldflags "-X main.version=v1.2.3". Without
+// it, the build is named by its commit (buildVersion).
+var version string
+
 type config struct {
-	addr, metrics, dbPath, sync, origins, adminEmail, adminPassword, resetAt, to, static, zstdLevel string
-	secure, debug                                                                                   bool
-	throttle                                                                                        time.Duration
-	lgwin, level, actions                                                                           int
+	addr, metrics, dbPath, sync, origins, adminEmail, adminPassword, resetAt, to, static, zstdLevel, proxies string
+	secure, debug                                                                                            bool
+	throttle                                                                                                 time.Duration
+	lgwin, level, actions, clientStreams                                                                     int
 }
 
 func main() {
+	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-version") {
+		fmt.Println("kanban", buildVersion())
+		return
+	}
 	cmd := "serve"
 	args := os.Args[1:]
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
@@ -108,6 +116,8 @@ func flags(cmd string, c *config) *flag.FlagSet {
 	fsf.IntVar(&c.level, "brotli-level", 4, "brotli quality of the live streams (1 to 11)")
 	fsf.StringVar(&c.zstdLevel, "zstd-level", "fastest", "zstd level of the live streams: fastest, default, better or best")
 	fsf.IntVar(&c.actions, "action-limit", 300, "actions one user may send per 10 s (0: no limit, for load tests)")
+	fsf.IntVar(&c.clientStreams, "client-streams", 16, "serve: live streams one client address may hold open at once, more get 429 (-1: no limit, for load tests)")
+	fsf.StringVar(&c.proxies, "trusted-proxies", env("KANBAN_TRUSTED_PROXIES", ""), "serve: believe X-Forwarded-For from these addresses and CIDRs too, comma-separated: proxies on another host or a container bridge (loopback is always believed)")
 	fsf.StringVar(&c.resetAt, "reset-at", env("KANBAN_RESET_AT", ""), "serve: put the demo boards back to the seed every day at HH:MM UTC (a public demo)")
 	fsf.StringVar(&c.to, "to", "", "backup: the file to write")
 	fsf.StringVar(&c.static, "static", "", "serve: static files from this directory instead of the embedded ones (development)")
@@ -157,15 +167,25 @@ func export(c config) error {
 	return enc.Encode(out)
 }
 
-func buildRef() string {
+// buildVersion is version, or else the commit the binary was built from,
+// with -dirty for a modified tree: /healthz names it, and the live hub
+// refreshes the pages a former build rendered (live.Options.Build).
+func buildVersion() string {
+	if version != "" {
+		return version
+	}
+	rev, dirty := "dev", ""
 	if bi, ok := debug.ReadBuildInfo(); ok {
 		for _, s := range bi.Settings {
-			if s.Key == "vcs.revision" && len(s.Value) >= 7 {
-				return s.Value[:7]
+			switch {
+			case s.Key == "vcs.revision" && len(s.Value) >= 12:
+				rev = s.Value[:12]
+			case s.Key == "vcs.modified" && s.Value == "true":
+				dirty = "-dirty"
 			}
 		}
 	}
-	return "dev"
+	return rev + dirty
 }
 
 // serve runs the server until ctx ends or the process gets SIGINT or SIGTERM.
@@ -176,6 +196,10 @@ func serve(ctx context.Context, c config, log *slog.Logger) error {
 	ok, zstdLevel := zstd.EncoderLevelFromString(c.zstdLevel)
 	if !ok {
 		return fmt.Errorf("-zstd-level %q: want fastest, default, better or best", c.zstdLevel)
+	}
+	proxies, err := edge.ParseProxies(c.proxies)
+	if err != nil {
+		return fmt.Errorf("-trusted-proxies: %w", err)
 	}
 	maddr, err := metricsListen(c.metrics, c.addr)
 	if err != nil {
@@ -200,10 +224,13 @@ func serve(ctx context.Context, c config, log *slog.Logger) error {
 		return err
 	}
 	hub = lithlive.New(lithlive.Options{
-		Read:            d.R,
-		Tick:            c.throttle,
-		HeartbeatSignal: views.PingSignal,
-		Log:             log,
+		Read:                d.R,
+		Tick:                c.throttle,
+		HeartbeatSignal:     views.PingSignal,
+		MaxStreamsPerClient: c.clientStreams,
+		Build:               buildVersion(),
+		Stopping:            web.Stopping,
+		Log:                 log,
 		// The board's frames are about 140 KB, twenty a second: a stream for
 		// which the budget has no window that holds a frame is refused with
 		// 503, and the page's retry 'error' brings it back once there is room.
@@ -223,7 +250,7 @@ func serve(ctx context.Context, c config, log *slog.Logger) error {
 	if c.static != "" {
 		sub = os.DirFS(c.static)
 	}
-	static, err := edge.NewStatic(sub, "/static/")
+	static, err := web.NewStatic(sub)
 	if err != nil {
 		return err
 	}
@@ -235,19 +262,20 @@ func serve(ctx context.Context, c config, log *slog.Logger) error {
 	}
 	s := &web.Server{
 		App: a, Hub: hub, Seats: live.NewSeats(hub.Changed, 3*time.Second), Render: web.NewRenderer(), Static: static, Log: log,
-		Secure: c.secure, Origins: origins, Actions: c.actions, Started: time.Now(), BuildRef: buildRef(),
+		Secure: c.secure, Origins: origins, Actions: c.actions, Started: time.Now(),
 	}
 	srv := &http.Server{
-		Addr:              c.addr,
-		Handler:           s.Handler(),
+		Handler:           edge.BehindProxies(proxies, s.Handler(buildVersion())),
 		ReadHeaderTimeout: 10 * time.Second,
-		ReadTimeout:       30 * time.Second,
-		WriteTimeout:      60 * time.Second, // a stream sets a deadline for each of its writes
-		IdleTimeout:       120 * time.Second,
-		ErrorLog:          slog.NewLogLogger(log.Handler(), slog.LevelWarn),
+		// ReadTimeout ends a body that does not arrive, and leaves streams
+		// alone; kanban takes no uploads.
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 60 * time.Second, // a stream sets a deadline for each of its writes
+		IdleTimeout:  120 * time.Second,
+		ErrorLog:     slog.NewLogLogger(log.Handler(), slog.LevelWarn),
 	}
 	// The metrics never go on the public listener.
-	msrv := &http.Server{Handler: metrics(d.W, hub, log), ReadHeaderTimeout: 5 * time.Second}
+	msrv := &http.Server{Handler: metrics(d.W, hub, s.Stats, log), ReadHeaderTimeout: 5 * time.Second}
 	if mln != nil {
 		go func() {
 			if err := msrv.Serve(mln); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -306,8 +334,14 @@ func serve(ctx context.Context, c config, log *slog.Logger) error {
 
 	errc := make(chan error, 1)
 	go func() {
-		log.Info("listening", "addr", c.addr, "metrics", maddr, "db", c.dbPath, "synchronous", c.sync, "build", s.BuildRef)
-		errc <- srv.ListenAndServe()
+		ln, err := net.Listen("tcp", c.addr)
+		if err != nil {
+			errc <- err
+			return
+		}
+		log.Info("listening", "addr", c.addr, "metrics", maddr, "db", c.dbPath, "synchronous", c.sync, "build", hub.Build(),
+			"proxy_headers_from", edge.TrustedProxies(ln.Addr(), proxies...))
+		errc <- srv.Serve(ln)
 	}()
 	select {
 	case err := <-errc:

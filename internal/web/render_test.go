@@ -16,7 +16,7 @@ import (
 
 func bigBoard(tb testing.TB) (*app.App, *Renderer) {
 	tb.Helper()
-	d, err := db.Open(context.Background(), filepath.Join(tb.TempDir(), "r.db"), db.Options{Synchronous: "NORMAL"})
+	d, err := db.Open(context.Background(), filepath.Join(tb.TempDir(), "r.db"), db.Options{Synchronous: "OFF"})
 	if err != nil {
 		tb.Fatal(err)
 	}

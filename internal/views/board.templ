@@ -16,7 +16,31 @@ type BoardShell struct {
 	Presence []byte
 	Lanes    []byte
 	Detail   []byte
+	// Build is the build that renders the page (lith's Hub.Build), and
+	// Assets the version of its scripts and stylesheet: the stream reports
+	// both, so that a page from before a deploy learns it needs a reload.
+	Build, Assets string
 }
+
+// Signals the page's stream sends, and what the server reads them into.
+// card and outbox carry on where the page is, _build and _assets tell a
+// page from before a deploy.
+const streamSignals = `{include: /^(card|outbox|_build|_assets)$/, exclude: /(?!)/}`
+
+// StreamState is what the stream's request reports in its signals.
+type StreamState struct {
+	Card   int64  `json:"card"`
+	Outbox int64  `json:"outbox"`
+	Build  string `json:"_build"`
+	Assets string `json:"_assets"`
+}
+
+// UpdateSignal shows the notice that asks for a reload (Update).
+const UpdateSignal = "_update"
+
+// Updating is the offline banner's text while a deploy restarts the server
+// (lith's Options.Stopping), until the new process's first frame.
+const Updating = "The server is updating. Back in a moment."
 
 // PingSignal is the signal the stream's heartbeat patches every 20 s
 // (lith's HeartbeatSignal), with a number that grows.
@@ -26,31 +50,39 @@ const PingSignal = "_ping"
 // stream's last event (lith's Spec.Reconnect) replaces it with a copy.
 const StreamID = "live"
 
-// signalsFor are the page's signals. card and outbox go to the server with
-// the stream's request: a stream that reconnects carries on where the page is.
-func signalsFor(tab string, open, outbox int64) string {
-	return `{"_tab":` + js(tab) + `,"card":` + id(open) + `,"outbox":` + id(outbox) + `,"_pend":{},"_acks":{},"_edit":"","_val":"","_in":{},"_net":"","_offline":false,"_beat":0,"` + PingSignal + `":0}`
+// signalsFor are the page's signals. Those in streamSignals go to the server
+// with the stream's request: a stream that reconnects carries on where the
+// page is. $_offline is true, or a string with the reason, while the stream
+// is away.
+func signalsFor(s BoardShell) string {
+	return `{"_tab":` + js(s.Tab) + `,"card":` + id(s.Open) + `,"outbox":` + id(s.Outbox) + `,"_build":` + js(s.Build) + `,"_assets":` + js(s.Assets) +
+		`,"` + UpdateSignal + `":false,"_pend":{},"_acks":{},"_edit":"","_val":"","_in":{},"_net":"","_offline":false,"_beat":0,"` + PingSignal + `":0}`
 }
 
 // fetchEvents watches every request. The stream (on this element) going
-// away marks the page as offline until the next frame; an action that
-// can't reach the server says so while Datastar retries it (op ids make a
-// retry safe), and one that finally fails is marked failed, not pending.
+// away marks the page as offline until the next frame, keeping the reason
+// a deploy gave; an action that can't reach the server says so while
+// Datastar retries it (op ids make a retry safe), and one that finally
+// fails is marked failed, not pending. A 429 or the server's own 500 comes
+// with a notice on the stream that says why (Hub.Notify), which replaces
+// the page's words.
 const fetchEvents = `evt.detail.el?.id === '` + StreamID + `'
-	? (['retrying', 'retries-failed'].includes(evt.detail.type) && ($_offline = true))
+	? (['retrying', 'retries-failed'].includes(evt.detail.type) && !$_offline && ($_offline = true))
 	: evt.detail.type === 'retrying' ? ($_net = 'Can’t reach the server. Trying again…')
 	: evt.detail.type === 'finished' ? ($_net.startsWith('Can’t reach') && ($_net = ''))
 	: ['error', 'retries-failed'].includes(evt.detail.type) && (
 		Object.values($_pend).forEach(op => op && !$_acks[op] && ($_acks[op] = 'failed')),
-		$_net = evt.detail.type === 'error'
+		evt.detail.argsRaw?.status === '429' || ($_net = evt.detail.type === 'error'
 			? 'The server couldn’t take that change, so nothing was saved. Reload the page and try again.'
-			: 'That change didn’t reach the server, so nothing was saved. Check your connection and try again.')`
+			: 'That change didn’t reach the server, so nothing was saved. Check your connection and try again.'))`
 
-// retry 'error' retries failures without end (a restart's 502s and 503s too)
-// but leaves a stream the server ended closed; a deploy re-creates StreamID.
-// A new request to the URL cancels the one in flight (requestCancellation).
+// retry 'error' retries failures without end (a restart's 502s and 503s too):
+// Datastar 1.0.5's retryMaxCount counts every retry in the request's life,
+// so it must be Infinity. A stream the server ended stays closed; a deploy
+// re-creates StreamID. A new request to the URL cancels the one in flight
+// (requestCancellation).
 func streamExpr(board int64, tab string) string {
-	return "@get(" + js(boardURL(board, "/live?tab="+tab)) + ", {retry: 'error', retryMaxCount: Infinity, retryMaxWait: 10000})"
+	return "@get(" + js(boardURL(board, "/live?tab="+tab)) + ", {filterSignals: " + streamSignals + ", retry: 'error', retryMaxCount: Infinity, retryMaxWait: 10000})"
 }
 
 // beat notes a sign of life: a heartbeat, or a new stream's first frame
@@ -71,13 +103,13 @@ func openExpr(board, card int64) string {
 	return `($card = ` + id(card) + `, location.pathname !== ` + js(path) + ` && history.pushState(null, '', ` + js(path) + `), ` + UI(boardURL(board, "/open"), "card: "+id(card)) + `)`
 }
 
-const popstate = `$card = +(location.pathname.match(/\/cards\/(\d+)/)?.[1] ?? 0), @post(location.pathname.replace(/\/cards\/\d+$/, '') + '/open', {payload: {tab: $_tab, card: $card}, requestCancellation: 'disabled'})`
+var popstate = `$card = +(location.pathname.match(/\/cards\/(\d+)/)?.[1] ?? 0), ` + ui(`location.pathname.replace(/\/cards\/\d+$/, '') + '/open'`, `card: $card`)
 
 templ BoardPage(s BoardShell) {
 	@Layout(s.Page) {
 		<div
 			id="app"
-			data-signals={ signalsFor(s.Tab, s.Open, s.Outbox) }
+			data-signals={ signalsFor(s) }
 			data-on:datastar-fetch={ fetchEvents }
 			data-on:popstate__window={ popstate }
 		>
@@ -107,7 +139,11 @@ templ BoardPage(s BoardShell) {
 			@templ.Raw(string(s.Detail))
 			<div id="status" class="sr-only" role="status"></div>
 			<p class="net-problem" role="alert" style="display: none" data-show="$_net" data-text="$_net" data-on:click="$_net = ''"></p>
-			<p class="offline" role="status" style="display: none" data-show="$_offline">Connection lost. Reconnecting… What you see may be out of date.</p>
+			<p class="offline" role="status" style="display: none" data-show="$_offline" data-text="typeof $_offline === 'string' ? $_offline : 'Connection lost. Reconnecting… What you see may be out of date.'"></p>
+			<p class="update" role="status" style="display: none" data-show={ "$" + UpdateSignal }>
+				Kanban was updated. Reload the page to get the new version.
+				<button type="button" class="btn sm" data-on:click="location.reload()">Reload</button>
+			</p>
 			<sb-toast id="toasts" placement="bottom-end" max="4" duration="7000" label="Messages" toasts="[]"></sb-toast>
 		</div>
 	}
@@ -180,7 +216,7 @@ func LaneShell(list int64) []byte {
 // openCard opens the card whose id the JS expression idExpr gives.
 func openCard(board int64, idExpr string) string {
 	base := boardURL(board, "")
-	return `($card = ` + idExpr + `, history.pushState(null, '', ` + js(base+"/cards/") + ` + $card), @post(` + js(base+"/open") + `, {payload: {tab: $_tab, card: $card}, requestCancellation: 'disabled'}))`
+	return `($card = ` + idExpr + `, history.pushState(null, '', ` + js(base+"/cards/") + ` + $card), ` + UI(base+"/open", "card: $card") + `)`
 }
 
 // A plain click on a card's title opens it here; a click with a modifier
