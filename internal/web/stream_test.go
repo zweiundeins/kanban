@@ -46,7 +46,7 @@ func testServer(t *testing.T, path string, opts ...testOptions) (*httptest.Serve
 	if err != nil {
 		t.Fatal(err)
 	}
-	log := slog.New(slog.DiscardHandler)
+	log := slog.New(slog.NewTextHandler(t.Output(), &slog.HandlerOptions{Level: slog.LevelWarn})) // shown only when the test fails
 	hub = lithlive.New(lithlive.Options{Read: d.R, Tick: 5 * time.Millisecond, Heartbeat: 50 * time.Millisecond, HeartbeatSignal: views.PingSignal,
 		MaxStreamsPerClient: o.clientStreams, Build: "test", Stopping: Stopping, Log: log})
 	ctx, stopHub := context.WithCancel(context.Background())
@@ -137,7 +137,7 @@ func until(t *testing.T, events <-chan event, want string) []event {
 				return seen
 			}
 		case <-timeout:
-			t.Fatalf("no %q in %d events", want, len(seen))
+			t.Fatalf("no %q in %d events, the first ones: %q", want, len(seen), short(seen[:min(len(seen), 8)]))
 		}
 	}
 }
