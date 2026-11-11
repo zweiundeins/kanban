@@ -1,13 +1,13 @@
 module kanban
 
-go 1.27.3
+go 1.27.4
 
 require (
-	github.com/a-h/templ v0.3.1070
-	github.com/andybalholm/brotli v1.2.6
-	github.com/klauspost/compress v1.20.3
+	github.com/a-h/templ v0.3.1100
+	github.com/andybalholm/brotli v1.3.0
+	github.com/klauspost/compress v1.20.4
 	github.com/prometheus/client_golang v1.25.0
-	github.com/yuin/goldmark v1.8.6
+	github.com/yuin/goldmark v1.8.7
 	github.com/zweiundeins/lith v0.5.6
 	github.com/zweiundeins/lith/dbmetrics/prom v0.1.0
 	github.com/zweiundeins/lith/prom v0.5.6
@@ -161,10 +161,10 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20261012220534-4341edf3f941 // indirect
 	google.golang.org/grpc v1.84.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
-	modernc.org/libc v1.78.0 // indirect
+	modernc.org/libc v1.80.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
-	modernc.org/sqlite v1.60.1 // indirect
+	modernc.org/sqlite v1.62.0 // indirect
 	mvdan.cc/sh/v3 v3.14.1 // indirect
 	mvdan.cc/sh/x v0.0.0-20261012132700-0e8ea6fccd96 // indirect
 )
