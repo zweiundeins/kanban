@@ -28,6 +28,7 @@ func get(t *testing.T, url string) (int, string) {
 	}
 	defer res.Body.Close()
 	b, _ := io.ReadAll(res.Body)
+	noRefusedURL(t, url, string(b))
 	return res.StatusCode, string(b)
 }
 

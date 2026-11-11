@@ -132,6 +132,7 @@ func until(t *testing.T, events <-chan event, want string) []event {
 				t.Fatalf("the stream ended before %q", want)
 			}
 			seen = append(seen, ev)
+			noRefusedURL(t, "an event", ev.data)
 			if strings.Contains(ev.data, want) {
 				return seen
 			}
@@ -257,7 +258,17 @@ func page(t *testing.T, url, cookie string) string {
 	}
 	defer res.Body.Close()
 	body, _ := io.ReadAll(res.Body)
+	noRefusedURL(t, url, string(body))
 	return string(body)
+}
+
+// noRefusedURL fails on an attribute templ refused as a URL: since
+// v0.3.1100 templ classifies attributes the way html/template does.
+func noRefusedURL(t *testing.T, where, html string) {
+	t.Helper()
+	if i := strings.Index(html, "TemplFailedSanitization"); i >= 0 {
+		t.Errorf("%s has an attribute templ refused as a URL: %.200s", where, html[max(0, i-150):])
+	}
 }
 
 // A page drawn now starts at the newest message of any tab, since its own
