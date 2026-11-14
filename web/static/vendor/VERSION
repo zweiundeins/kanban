@@ -1,7 +1,7 @@
 Starbase components, one file each (Starbase's cmd/dist), from
-github.com/zweiundeins/starbase at commit 66cf2737392b5ba9c770d202d50f8271f94fdc2d.
+github.com/zweiundeins/starbase at commit 4d32e31bf9723b3046fc26c3f1b46fd5f3a071c8.
 Datastar is lith's (template.Datastar()); this commit's
-static/vendor/datastar-rocket.js, sha256 be8cc4bc89d1a084d7cf4100ff2d093ccde07ff6fd371fb0d7b2e2b6d0fb39f0,
+static/vendor/datastar-rocket.js, sha256 dad2261a81d8e38db5d77bf274d9d2905c2ea5b0a30bd2673dc7810254e2b61e,
 must be the same build (TestStarbaseMatchesDatastar).
 Update: task starbase REF=<ref>.
 The PD rockets components (kanban-board, inline-edit) are Beer-Ware (their *.LICENSE-pd-rockets.txt); the rest is MIT (starbase/LICENSE).
@@ -9,5 +9,5 @@ The PD rockets components (kanban-board, inline-edit) are Beer-Ware (their *.LIC
 Files and their integrity, as cmd/dist printed them:
 inline-edit.js	2970 bytes	sha384-v/bRX30mVUEYve9XNZmS99OGcmwS3NuDyOVYosdW6JTkVpns+VwvkLt3e7Lor/mX
 kanban-board.js	33125 bytes	sha384-5TGE7zzZabWZaVEukmFZrjM6ypkMsC1Md6ZcsjH2F7dVCosxYbHY3xdcO9AROvYg
-modal.js	3822 bytes	sha384-uhAkiZOHoXsaghNRKps3Y9IGW6wWiJK7pJF2zBTGbnenYx84U1hFUfCinjZoaYhi
+modal.js	3655 bytes	sha384-mC4ZffMCMd4LZgiwiBrNTPmHcyQFJpBnIfN/pSXUWBCYGapJcfA5re1djvJiVbgv
 toast.js	8657 bytes	sha384-hY9R9uaq/UMDRAV49h5eoFl9ss0YapNvP5OgKYiMLeNG/aX8QA7G8sitMj10qxrW
