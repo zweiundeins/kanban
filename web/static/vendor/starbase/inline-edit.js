@@ -1,4 +1,4 @@
-/*! sb-inline-edit, version inline-edit@09d89c2e1737: its modules in one file */
+/*! sb-inline-edit, version inline-edit@6524596113ba: its modules in one file. Beerware, (c) derekr. */
 import{rocket as w}from"datastar";/*!
  * From PD rockets by derekr (https://github.com/derekr/pd-rockets, v2026-09-28-2), vendored by
  * `go run ./cmd/vendorpd` with patches/pd-rockets applied, pd- names renamed to sb-.

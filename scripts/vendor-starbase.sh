@@ -2,7 +2,7 @@
 # Vendors the Starbase components this app uses, one file each (Starbase's
 # cmd/dist writes the same bytes starbase.zweiundeins.gmbh serves), from a
 # Starbase checkout at a given ref. Datastar comes from lith
-# (template.Datastar()): take the components from a Starbase commit whose
+# (datastar.JS()): take the components from a Starbase commit whose
 # static/vendor/datastar-rocket.js is that same build, or the two copies of
 # Rocket break each other (TestStarbaseMatchesDatastar).
 #   scripts/vendor-starbase.sh ../starbase origin/main
@@ -31,7 +31,7 @@ datastar=$(git -C "$src" show "$commit:static/vendor/datastar-rocket.js" | sha25
 	cat <<EOT
 Starbase components, one file each (Starbase's cmd/dist), from
 github.com/zweiundeins/starbase at commit $commit.
-Datastar is lith's (template.Datastar()); this commit's
+Datastar is lith's (datastar.JS()); this commit's
 static/vendor/datastar-rocket.js, sha256 $datastar,
 must be the same build (TestStarbaseMatchesDatastar).
 Update: task starbase REF=<ref>.
