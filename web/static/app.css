@@ -102,8 +102,11 @@ code { font-family: var(--mono); font-size: 0.9em; }
 .btn.ghost:hover { background: var(--sb-surface-hover); }
 .btn.danger { color: var(--danger); }
 .btn.sm { min-height: 1.9rem; padding: 0.25rem 0.65rem; font-size: 0.875rem; }
-.btn[aria-busy="true"] { cursor: progress; opacity: 0.7; }
-.btn[aria-busy="true"]::after { content: ""; width: 0.8em; height: 0.8em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite; }
+/* busy shows after 200 ms, so a quick answer doesn't flicker */
+.btn[aria-busy="true"] { cursor: progress; animation: busy-dim 0s 200ms both; }
+.btn[aria-busy="true"]::after { content: ""; width: 0.8em; height: 0.8em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; opacity: 0; animation: busy-show 0s 200ms both, spin 0.7s linear 200ms infinite; }
+@keyframes busy-dim { to { opacity: 0.7; } }
+@keyframes busy-show { to { opacity: 1; } }
 .icon-btn {
 	display: inline-grid; place-items: center; width: 1.9rem; height: 1.9rem; padding: 0;
 	border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer;
